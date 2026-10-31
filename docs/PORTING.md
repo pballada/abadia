@@ -26,3 +26,7 @@
 ## Distribution
 
 `make package` produces a universal app linked only against system frameworks. Codesigning is ad hoc. Developer ID signing and notarization are separate release steps requiring the maintainer's signing identity. The artifact excludes ROMs and other game assets. CI builds both architectures and executes asset-free checks; full gameplay checks require local data supplied separately.
+
+## Save integrity (0.2)
+
+New saves append a versioned SHA-256 footer to the inherited text payload. The loader checks it before the legacy deserializer can mutate the world. Writes go to a sibling temporary file and replace the slot by rename only after close and sealing succeed; configuration metadata is updated afterwards. Configuration writes use a sibling temporary file too. This protects against accidental corruption and incomplete writes; it is not authentication of untrusted saves. Earlier unsealed saves are rejected without modifying them.

@@ -26,6 +26,9 @@ struct System {
     std::array<uint32_t, TEXTURE_WIDTH * TEXTURE_HEIGHT> framebuffer{};
     NativeSurface storage{framebuffer.data()};
     NativeSurface *surface = &storage;
+    std::string pendingError;
+    bool sealSave(const std::string& path);
+    bool validateSave(const std::string& path);
     void playMusic(int i);
     void stopMusic();
     void setAudioPaused(bool paused);

@@ -15,3 +15,9 @@ Verified locally:
 Not claimed: a full seven-day playthrough, all endings, physical Intel hardware, physical gamepad testing, older macOS runtime testing, Developer ID signing, or notarization.
 
 Upstream game data used for local tests is excluded from source and distributable archives. The built app expects the player's locally imported data.
+
+## 0.2 reliability regressions
+
+The local real-data check now covers all seven slot round trips, a corrupted payload, an empty slot, and an unwritable staging path. Rejected loads preserve the current player position; failed overwrites preserve the previous file. This is targeted regression coverage, not a completed seven-day playthrough.
+
+The 0.2 regression scenario passed locally with AddressSanitizer and UndefinedBehaviorSanitizer (leak detection disabled for the process-lifetime engine). The first-launch guide was also opened and dismissed through the native UI.

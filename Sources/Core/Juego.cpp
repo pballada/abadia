@@ -224,8 +224,7 @@ bool Juego::menuCargar2()
 				return false;
 			}
 
-			laLogica->inicia();			
-			cargar(seleccionado);			
+			if (!cargar(seleccionado)) return false;			
 			changeState(PLAY);
 			ReiniciaPantalla();
 			firstTime = false;
@@ -258,33 +257,20 @@ bool Juego::cargar(int slot)
 	path = VITA_SAVE_DIR;
 	#endif
 
-	std::ifstream in((path + savefile[slot]).c_str());
-	in >> logica;
-	if (in.fail())
-	{
-		/* CPC
-		   elMarcador->imprimeFrase("            ", 110, 164, 2, 3);
-		   elMarcador->imprimeFrase("??????ERROR!!!", 110, 164, 2, 3); */
-		// VGA
-		elMarcador->imprimeFrase("                  ", 100, 164, 4, 0);
-		elMarcador->imprimeFrase("ERROR: PRESS SPACE", 100, 164, 4, 0);
-		// el juego ha podido quedar destrozado
-		// lo suyo seria cargar en un objeto logica temporal
-		// y luego intercambiar los punteros
-		// pero como es un singleton...
-		// intentemos , al menos, reiniciar
-		//do
-		//{
-		//	losControles->actualizaEstado();
-		//}while (losControles->estaSiendoPulsado(P1_BUTTON1) == false);
-
-		// CPC elMarcador->imprimeFrase("           ", 110, 164, 2, 3);
-		elMarcador->imprimeFrase("                  ", 100, 164, 4, 0);
-		logica->inicia();
-		// devolvemos true, para que se reinicie todo
-		return true;
-	}
-	else {return true;}
+    const std::string name = path + savefile[slot];
+    if (!sys->validateSave(name)) {
+        sys->pendingError = "This slot is empty, damaged, or from an earlier save format. Your current game has been kept. Earlier save files remain on disk; use the previous app version to load them.";
+        return false;
+    }
+    std::ifstream in(name);
+    in >> logica;
+    if (in.fail()) {
+        sys->pendingError = "The game could not read this save.";
+        return false;
+    }
+    activeGame = true;
+    sys->setNormalSpeed();
+    return true;
 }
 
 string Juego::getDateAndTime()
@@ -509,8 +495,7 @@ void Juego::askToContinueLogic()
 		}
 		else //YES
 		{	
-			laLogica->inicia();
-			cargar(selectedSlot);						
+			if (!cargar(selectedSlot)) { changeState(LOAD); return; }						
 			changeState(PLAY);
 			ReiniciaPantalla();
 			firstTime = false;
@@ -554,46 +539,26 @@ void Juego::askToContinue()
 	}
 }
 
-void Juego::save(int slot)
+bool Juego::save(int slot)
 {
-	
-	//Update config.txt
-	string d = getDateAndTime();
-	string token = "SAVEX";
-	token[4] = '0' + slot;		
-	configReader->setValue(token, d);
-	saveConfigFile();
-
-	// save "abadiaX.save"
-
-	std::string path = "";
-
-	#ifdef RG350
-	path = "/usr/local/home/Abbey/";
-	#endif
-
-	#ifdef ANDROID
-	if (SDL_AndroidGetExternalStorageState() != 0){
-		path = SDL_AndroidGetExternalStoragePath();
-		path += "/";
-	}
-	#endif
-	
-	#ifdef VITA
-	path = VITA_SAVE_DIR;
-	#endif
-
-	std::ofstream out((path + savefile[slot]).c_str(),
-			std::ofstream::out|std::ofstream::trunc);
-	
-	out << logica; 
-
-	if (out.fail())
-	{
-		// VGA
-		elMarcador->imprimeFrase("                  ", 100, 164, 4, 0);
-		elMarcador->imprimeFrase("ERROR: PRESS SPACE", 100, 164, 4, 0);		
-	}
+    if (slot < 0 || slot >= 7) return false;
+    std::string name = savefile[slot];
+    std::string staging = name + ".tmp";
+    std::ofstream out(staging, std::ios::out | std::ios::trunc);
+    out << logica;
+    out.flush();
+    bool written = out.good();
+    out.close();
+    if (!written || out.fail() || !sys->sealSave(staging) || std::rename(staging.c_str(), name.c_str()) != 0) {
+        std::remove(staging.c_str());
+        sys->pendingError = "Could not save progress. Check available disk space and folder permissions. The previous slot has been kept.";
+        return false;
+    }
+    string token = "SAVEX";
+    token[4] = '0' + slot;
+    configReader->setValue(token, getDateAndTime());
+    saveConfigFile();
+    return true;
 }
 
 void Juego::pintaMenuGrabar(int seleccionado,bool efecto)
@@ -657,7 +622,7 @@ bool Juego::menuGrabar2()
 		BUTTON_YES = false;
 		if (seleccionado != 7)
 		{			
-			save(seleccionado);						
+			if (!save(seleccionado)) return false;						
 			changeState(PLAY);
 			ReiniciaPantalla();
 			return true;
@@ -801,7 +766,7 @@ bool Juego::menu()
 				marcador->limpiaAreaMarcador();					
 				BUTTON_YES = false;
 
-				activeGame = true;
+
 				
 				return true;
 				break;
@@ -1021,7 +986,7 @@ bool Juego::saveConfigFile()
 	path = VITA_SAVE_DIR;
 	#endif
 	
-	f.open((path + "config.txt").c_str());
+	f.open((path + "config.txt.tmp").c_str());
 
 	// write current language
 	f << "LANGUAGE="<< idioma <<"\n";
@@ -1041,8 +1006,10 @@ bool Juego::saveConfigFile()
 		}
 	}
 
+	f.flush();
+	r = f.good();
 	f.close();
-	return r;
+	return r && !f.fail() && std::rename((path + "config.txt.tmp").c_str(), (path + "config.txt").c_str()) == 0;
 }
 
 

@@ -37,6 +37,7 @@ static bool WriteFrame(NSString *path) {
     std::set<unsigned short> _keys;
     std::set<unsigned short> _pressed;
     CFTimeInterval _lastTick;
+    bool _controllerAcceptDown;
 }
 @property(nonatomic, strong) NSWindow *window;
 @property(nonatomic, strong) GameView *gameView;
@@ -53,6 +54,7 @@ static bool WriteFrame(NSString *path) {
 - (BOOL)acceptsFirstResponder { return YES; }
 - (BOOL)isFlipped { return YES; }
 - (void)keyDown:(NSEvent *)event {
+    if (event.isARepeat && (event.keyCode == 36 || event.keyCode == 19)) return;
     if (event.modifierFlags & NSEventModifierFlagCommand) { [super keyDown:event]; return; }
     if (event.keyCode == 53) { if (!event.isARepeat) [self.owner gameMenu:nil]; return; }
     if (event.keyCode == 35) { if (!event.isARepeat) [self.owner togglePause:nil]; return; }
@@ -116,8 +118,8 @@ static bool WriteFrame(NSString *path) {
     }
     [self text:@"LA ABADÍA DEL CRIMEN" y:y+140 size:31 color:ink serif:YES];
     [self text:@"A mystery in seven days." y:y+187 size:17 color:ink serif:YES];
-    [self text:@"The original adventure, at home on your Mac." y:y+222 size:13 color:ink serif:NO];
-    [self text:@"Import your game data to enter the abbey." y:y+244 size:13 color:ink serif:NO];
+    [self text:@"Required: abadia.dsk · GraficosCPC · GraficosVGA" y:y+222 size:13 color:ink serif:NO];
+    [self text:@"Select your Abbey folder. Audio files are optional." y:y+244 size:13 color:ink serif:NO];
     [self text:@"Paco Menéndez · Juan Delcán · 1987" y:self.bounds.size.height-54 size:12 color:ink serif:NO];
     [self text:@"Native macOS port · VIGASOCO / Abbey" y:self.bounds.size.height-33 size:11 color:ink serif:NO];
 }
@@ -196,6 +198,7 @@ static bool WriteFrame(NSString *path) {
     add(view,@"Enhanced Graphics",@selector(enhancedGraphics:),@"");
     add(view,@"Original Pixels",@selector(originalPixels:),@"");
     NSMenu *help = submenu(@"Help");
+    add(help,@"Getting Started…",@selector(gettingStarted:),@"");
     add(help,@"How to Play",@selector(help:),@"?");
     NSApp.helpMenu = help;
 }
@@ -203,8 +206,11 @@ static bool WriteFrame(NSString *path) {
     if (_engine) return;
     if (chdir(support.fileSystemRepresentation) != 0) { [self alert:@"Unable to open the save folder." detail:support.path]; return; }
     _engine = new Vigasoco();
-    if (!_engine->init()) { [self alert:@"Unable to initialize the game." detail:@"Reimport the supported Abbey game data and relaunch."]; return; }
+    if (!_engine->init()) { delete _engine; _engine = nullptr; [self alert:@"Unable to initialize the game." detail:@"Reimport the supported Abbey game data and relaunch."]; return; }
     self.gameView.ready = YES; self.importButton.hidden = YES;
+    if (![NSUserDefaults.standardUserDefaults boolForKey:@"HasSeenWelcome"]) {
+        dispatch_async(dispatch_get_main_queue(), ^{ [self gettingStarted:nil]; });
+    }
     [self.window makeFirstResponder:self.gameView];
     _engine->mainLoop(); self.gameView.needsDisplay = YES;
 }
@@ -213,12 +219,13 @@ static bool WriteFrame(NSString *path) {
     NSOpenPanel *panel = NSOpenPanel.openPanel;
     panel.canChooseFiles = NO; panel.canChooseDirectories = YES;
     panel.prompt = @"Import";
-    panel.message = @"Choose the folder containing abadia.dsk, GraficosCPC and GraficosVGA. WAV audio files are optional. Game data stays on this Mac.";
+    panel.message = @"Select your Abbey folder or its roms/abadia folder. Required: abadia.dsk, GraficosCPC, GraficosVGA. Optional: WAV audio. Your original files stay in place.";
     [panel beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse result) {
         if (result != NSModalResponseOK) return;
         NSError *error = nil;
         NSURL *support = AbadiaSupportDirectory();
-        if (!ImportAssets(panel.URL, support, &error)) [self alert:@"Could not import game data" detail:error.localizedDescription];
+        NSURL *folder = FindAssetDirectory(panel.URL) ?: panel.URL;
+        if (!ImportAssets(folder, support, &error)) [self alert:@"Could not import game data" detail:error.localizedDescription];
         else [self startEngine:support];
     }];
 }
@@ -232,7 +239,7 @@ static bool WriteFrame(NSString *path) {
     if (now-_lastTick < sys->minimumFrameTime/1000.0) return;
     _lastTick = now;
     auto key = [&](int k) { return _keys.count(k) > 0 || _pressed.count(k) > 0; };
-    sys->pad = {key(126)||key(13),key(125)||key(1),key(123)||key(0),key(124)||key(2),key(49),key(45)||key(8),key(36),key(6),key(19)};
+    sys->pad = {key(126)||key(13),key(125)||key(1),key(123)||key(0),key(124)||key(2),key(49),key(45)||key(8),_pressed.count(36)>0,key(6),_pressed.count(19)>0};
     _pressed.clear();
     GCExtendedGamepad *pad = GCController.controllers.firstObject.extendedGamepad;
     if (pad) {
@@ -240,7 +247,8 @@ static bool WriteFrame(NSString *path) {
         sys->pad.down |= pad.dpad.down.pressed || pad.leftThumbstick.yAxis.value < -0.5;
         sys->pad.left |= pad.dpad.left.pressed || pad.leftThumbstick.xAxis.value < -0.5;
         sys->pad.right |= pad.dpad.right.pressed || pad.leftThumbstick.xAxis.value > 0.5;
-        sys->pad.button3 |= pad.buttonA.pressed;
+        sys->pad.button3 |= pad.buttonA.pressed && !_controllerAcceptDown;
+        _controllerAcceptDown = pad.buttonA.pressed;
         sys->pad.button2 |= pad.buttonB.pressed;
         sys->pad.button1 |= pad.buttonX.pressed;
         sys->pad.button4 |= pad.buttonY.pressed;
@@ -251,6 +259,11 @@ static bool WriteFrame(NSString *path) {
     }
     if (sys->pad.start) { [self gameMenu:nil]; _keys.erase(19); }
     _engine->mainLoop(); self.gameView.needsDisplay = YES;
+    if (!sys->pendingError.empty()) {
+        NSString *message = @(sys->pendingError.c_str()); sys->pendingError.clear();
+        _keys.clear(); _pressed.clear();
+        [self alert:@"Progress could not be updated" detail:message];
+    }
     if (sys->exit) [NSApp terminate:nil];
 }
 - (void)gameMenu:(id)sender {
@@ -279,10 +292,14 @@ static bool WriteFrame(NSString *path) {
 - (void)screenshot:(id)sender {
     if (!self.gameView.ready) return;
     BOOL wasPaused = self.paused; self.paused = YES;
+    _keys.clear(); _pressed.clear(); sys->pad = {};
+    if (!wasPaused) sys->setAudioPaused(true);
     NSSavePanel *panel = NSSavePanel.savePanel; panel.nameFieldStringValue = @"Abadia.png";
     [panel beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse result) {
         if (result == NSModalResponseOK && !WriteFrame(panel.URL.path)) [self alert:@"Could not save the screenshot" detail:@"Choose a writable location."];
         self.paused = wasPaused;
+        self->_keys.clear(); self->_pressed.clear(); sys->pad = {};
+        if (!wasPaused) sys->setAudioPaused(false);
     }];
 }
 - (void)enhancedGraphics:(id)sender {
@@ -303,10 +320,32 @@ static bool WriteFrame(NSString *path) {
 }
 - (void)alert:(NSString *)title detail:(NSString *)detail {
     NSAlert *alert = [NSAlert new]; alert.messageText = title; alert.informativeText = detail;
-    [alert beginSheetModalForWindow:self.window completionHandler:nil];
+    _keys.clear(); _pressed.clear(); sys->pad = {};
+    if (!self.paused) sys->setAudioPaused(true);
+    [alert beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse result) {
+        self->_keys.clear(); self->_pressed.clear(); sys->pad = {};
+        if (!self.paused) sys->setAudioPaused(false);
+        [self.window makeFirstResponder:self.gameView];
+    }];
 }
 - (void)about:(id)sender {
-    [self alert:@"La abadía del crimen · 0.1.0" detail:@"Original game: Paco Menéndez and Juan Delcán (1987).\nC++ reconstruction: Manuel Abadía / VIGASOCO.\nSDL adaptation: Luzbel. Graphics: Antonio Giner.\nAbbey: Samuel Salinas Almaguer and contributors.\nNative macOS port: pballada.\n\nA noncommercial preservation project. Original assets are imported separately. See README and VIGASOCO.txt for attribution and terms."];
+    [self alert:@"La abadía del crimen · 0.2.0" detail:@"Original game: Paco Menéndez and Juan Delcán (1987).\nC++ reconstruction: Manuel Abadía / VIGASOCO.\nSDL adaptation: Luzbel. Graphics: Antonio Giner.\nAbbey: Samuel Salinas Almaguer and contributors.\nNative macOS port: pballada.\n\nA noncommercial preservation project. Original assets are imported separately. See README and VIGASOCO.txt for attribution and terms."];
+}
+- (void)gettingStarted:(id)sender {
+    NSAlert *guide = [NSAlert new];
+    guide.messageText = self.gameView.ready ? @"Welcome to the abbey" : @"Bring your game data";
+    guide.informativeText = self.gameView.ready
+        ? @"1. Press Return on the title, then choose New Game. Return also skips the prologue.\n\n2. Walk forward with ↑ or W. Turn with ← → or A D. These are character-relative controls.\n\n3. Follow the abbot when you arrive. Attend services and meals, and keep an eye on obsequium.\n\nEscape opens the game menu. Save regularly in its seven slots. P pauses; switching apps pauses automatically.\n\nYou can reopen this guide from Help → Getting Started."
+        : @"You need three files from the supported Abbey data pack:\n\n• abadia.dsk\n• GraficosCPC\n• GraficosVGA\n\nChoose the Abbey folder, build folder, or roms/abadia folder with Import Game Data. The app finds the files inside. WAV audio is optional.\n\nThe app copies the data to Application Support and leaves your source files in place. A disk image alone is not enough.";
+    [guide addButtonWithTitle:self.gameView.ready ? @"Enter the Abbey" : @"Got It"];
+    _keys.clear(); _pressed.clear(); sys->pad = {};
+    if (!self.paused) sys->setAudioPaused(true);
+    [guide beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse result) {
+        if (self.gameView.ready) [NSUserDefaults.standardUserDefaults setBool:YES forKey:@"HasSeenWelcome"];
+        self->_keys.clear(); self->_pressed.clear(); sys->pad = {};
+        if (!self.paused) sys->setAudioPaused(false);
+        [self.window makeFirstResponder:self.gameView];
+    }];
 }
 - (void)help:(id)sender {
     [self alert:@"Enter the abbey" detail:@"Return: accept / skip the introduction\n↑ or W: walk forward\n← → or A D: turn\n↓ or S: command Adso (as in the original)\nSpace: drop an object\nN or C: no / secondary action\nZ: alternate action\nEsc or ⌘M: game menu (new game, seven save slots, load, language, continue)\nP or ⌘P: pause\n⌃⌘F: fullscreen · ⌘U: mute\n\nControllers: D-pad / left stick, A to accept, B for no, X to drop, Y for alternate action, Menu to open the game menu.\n\nFollow the abbot on arrival. Observe the abbey’s daily schedule and protect your obsequium. The game pauses when you switch apps."];
@@ -317,7 +356,13 @@ static int SmokeTest(NSString *source, NSString *output) {
     NSFileManager *fm = NSFileManager.defaultManager;
     NSURL *temp = [NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString]];
     NSError *error = nil;
-    if (!ImportAssets([NSURL fileURLWithPath:source], temp, &error)) { fprintf(stderr,"%s\n",error.localizedDescription.UTF8String); return 1; }
+    NSURL *sourceURL = [NSURL fileURLWithPath:source];
+    NSURL *parent = sourceURL.URLByDeletingLastPathComponent.URLByDeletingLastPathComponent;
+    if (!FindAssetDirectory(sourceURL) || !FindAssetDirectory(parent)) {
+        fprintf(stderr,"FAIL data folder discovery\n"); return 1;
+    }
+    printf("PASS importer discovers data inside the selected parent folder\n");
+    if (!ImportAssets(sourceURL, temp, &error)) { fprintf(stderr,"%s\n",error.localizedDescription.UTF8String); return 1; }
     NSString *cwd = fm.currentDirectoryPath;
     if (chdir(temp.fileSystemRepresentation)) return 1;
     sys->muted = true;
@@ -354,6 +399,37 @@ static int SmokeTest(NSString *source, NSString *output) {
     ok &= check(game->currentState == ASK_CONTINUE,"loading asks before replacing the current game");
     game->seleccionado=0; sys->pad.button3=true; tick();
     ok &= check(game->personajes[0]->posX==savedX && game->personajes[0]->posY==savedY,"save slot restores player position");
+    // Empty and corrupt slots must never reset a running game.
+    auto attemptLoad = [&](int slot) {
+        engine.changeState(MENU); game->seleccionado=1; sys->pad.button3=true; tick();
+        game->seleccionado=slot; sys->pad.button3=true; tick();
+        game->seleccionado=0; sys->pad.button3=true; tick();
+    };
+    int beforeX=game->personajes[0]->posX, beforeY=game->personajes[0]->posY;
+    attemptLoad(6);
+    ok &= check(game->currentState==LOAD && game->personajes[0]->posX==beforeX && game->personajes[0]->posY==beforeY && !sys->pendingError.empty(),"empty slot preserves live progress and reports failure");
+    sys->pendingError.clear();
+    NSData *goodSave=[NSData dataWithContentsOfFile:@"abadia0.save"];
+    NSMutableData *badSave=[goodSave mutableCopy];
+    ((unsigned char *)badSave.mutableBytes)[0]^=1;
+    [badSave writeToFile:@"abadia0.save" atomically:YES];
+    attemptLoad(0);
+    ok &= check(game->personajes[0]->posX==beforeX && game->personajes[0]->posY==beforeY && !sys->pendingError.empty(),"corrupt save is rejected before mutating the live world");
+    sys->pendingError.clear();
+    [goodSave writeToFile:@"abadia0.save" atomically:YES];
+    [fm createDirectoryAtPath:@"abadia0.save.tmp" withIntermediateDirectories:NO attributes:nil error:nil];
+    engine.changeState(MENU); game->seleccionado=2; sys->pad.button3=true; tick();
+    game->seleccionado=0; sys->pad.button3=true; tick();
+    ok &= check(game->currentState==SAVE && [[NSData dataWithContentsOfFile:@"abadia0.save"] isEqual:goodSave] && !sys->pendingError.empty(),"failed overwrite keeps the old slot and stays in save menu");
+    [fm removeItemAtPath:@"abadia0.save.tmp" error:nil]; sys->pendingError.clear();
+    for (int slot=0;slot<7;++slot) {
+        engine.changeState(MENU); game->seleccionado=2; sys->pad.button3=true; tick();
+        game->seleccionado=slot; sys->pad.button3=true; tick();
+        ok &= check(sys->validateSave(std::string("abadia")+std::to_string(slot)+".save"),"save slot has a valid integrity footer");
+        game->personajes[0]->posX=beforeX+3;
+        attemptLoad(slot);
+        ok &= check(game->currentState==PLAY && game->personajes[0]->posX==beforeX,"slot restores saved world after player position changes");
+    }
     for (int i=0;i<500;++i) tick();
     ok &= check(true,"500 additional game ticks complete");
     chdir(cwd.fileSystemRepresentation); [fm removeItemAtURL:temp error:nil];

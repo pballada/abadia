@@ -16,7 +16,7 @@ NSURL *AbadiaSupportDirectory() {
 }
 
 NSString *ValidateAssets(NSURL *directory) {
-    for (NSString *name in RequiredAssets()) {
+    for (NSString *name in [RequiredAssets().allKeys sortedArrayUsingSelector:@selector(compare:)]) {
         NSURL *url = [directory URLByAppendingPathComponent:name];
         NSDictionary *attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:url.path error:nil];
         NSUInteger expectedSize = [name isEqual:@"abadia.dsk"] ? 160768 : 174065;
@@ -30,6 +30,14 @@ NSString *ValidateAssets(NSURL *directory) {
         for (unsigned char byte : digest) [hash appendFormat:@"%02x", byte];
         if (![hash isEqual:RequiredAssets()[name]])
             return [NSString stringWithFormat:@"%@ is not the supported version. This port requires the unchanged Abbey / VIGASOCO data pack. Your files have not been changed.", name];
+    }
+    return nil;
+}
+
+NSURL *FindAssetDirectory(NSURL *selection) {
+    for (NSString *path in @[@"", @"abadia", @"roms/abadia", @"build/roms/abadia"]) {
+        NSURL *candidate = path.length ? [selection URLByAppendingPathComponent:path] : selection;
+        if (!ValidateAssets(candidate)) return candidate;
     }
     return nil;
 }
@@ -83,7 +91,7 @@ int RunSelfTests() {
     check(ValidateAssets(temp) != nil, "missing data is rejected before engine initialization");
     [NSData.data writeToURL:[temp URLByAppendingPathComponent:@"abadia.dsk"] atomically:YES];
     check(ValidateAssets(temp) != nil, "truncated disk image is rejected");
-    for (NSString *name in RequiredAssets()) {
+    for (NSString *name in [RequiredAssets().allKeys sortedArrayUsingSelector:@selector(compare:)]) {
         NSMutableData *data = [NSMutableData dataWithLength:[name isEqual:@"abadia.dsk"] ? 160768 : 174065];
         [data writeToURL:[temp URLByAppendingPathComponent:name] atomically:YES];
     }

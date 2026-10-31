@@ -53,7 +53,7 @@ open "build/La abadia del crimen.app"
 
 ## Import game data
 
-On first launch, choose **Import Game Data…** and select the folder containing:
+On first launch, choose **Import Game Data…** and select your Abbey folder, its `build` folder, or `roms/abadia`. The importer searches these supported locations for:
 
 | File | Required size |
 | --- | ---: |
@@ -66,6 +66,15 @@ This version supports the unchanged data layout used by [Samuel85/Abbey](https:/
 Optional WAV files in the same folder provide music and effects: `inicio`, `final`, `fondo`, `abrir`, `aporrear`, `campanas`, `cerrar`, `coger`, `dejar`, `espejo`, `pasos`, and `tintineo` (each with `.wav`). Without them the game runs silently.
 
 Data is copied locally to `~/Library/Application Support/Abadia/roms/abadia`. Saves and language settings live in `~/Library/Application Support/Abadia`. The application bundle stays read-only. Nothing is uploaded, and the app makes no network requests.
+
+## What’s new in 0.2
+
+- A first-launch guide explains character-relative movement, your arrival at the abbey, saves, and pause. Reopen it with **Help → Getting Started**.
+- The importer recognizes the Abbey project folder as well as the data folder itself.
+- Save slots are replaced atomically and carry an integrity checksum. Corrupt or empty slots are rejected before changing the current world; failed writes preserve the previous slot.
+- Confirmation presses are buffered once, so holding Return or controller A cannot confirm the next screen accidentally.
+
+**Save compatibility:** 0.2 adds an integrity footer. Unsealed saves from 0.1 or other ports are retained on disk but cannot be loaded by 0.2. Keep the earlier app if you need to continue those saves; back up Application Support before overwriting a slot. The checksum detects accidental damage, not maliciously crafted files.
 
 ## Play
 
@@ -113,7 +122,7 @@ ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 \
   build/obj-arm64-sanitize/Abadia --smoke-test /absolute/path/to/roms/abadia
 ```
 
-The asset-free tests reject missing, truncated, and corrupt imports without changing the destination. The optional real-data test uses an isolated temporary save directory and exercises the title, menu, prologue, gameplay, player turning, saving, restoring changed player coordinates, and hundreds of subsequent simulation ticks. It never alters normal player saves. Game data is not downloaded by CI.
+The asset-free tests reject missing, truncated, and corrupt imports without changing the destination. The optional real-data test uses an isolated temporary save directory and exercises the title, menu, prologue, gameplay, player turning, saving, restoring changed player coordinates, all seven save slots, rejection of corrupt and empty slots, a failed overwrite, and hundreds of subsequent simulation ticks. It never alters normal player saves. Game data is not downloaded by CI.
 
 This is an initial playable port, not a claim that every puzzle and ending has been exhaustively replayed. Hardware controller mapping is implemented with Apple's GameController API; actual controller hardware testing remains outstanding. The renderer uses the upstream VGA artwork, with Enhanced Graphics and Original Pixels presentation options. A CPC/VGA artwork switch is not exposed. Legacy saves from other ports are not a supported interchange format.
 

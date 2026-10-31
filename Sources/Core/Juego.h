@@ -97,7 +97,7 @@ public:
 
 private:
 	bool cargar(int slot);
-	void save(int slot);
+	bool save(int slot);
 	
     /////////////////////////////////////////////////////////
 	void pintaMenuCargar(int seleccionado,bool efecto=false);
