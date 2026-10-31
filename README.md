@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="Resources/AppIcon-master.png" alt="Golden Gothic arch and crimson manuscript on emerald stone" width="128">
+
 # La abadía del crimen
 ### A mystery in seven days. A new home on the Mac.
 
