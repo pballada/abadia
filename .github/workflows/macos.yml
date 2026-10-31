@@ -1,0 +1,25 @@
+name: macOS
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build universal application
+        run: make -j3 package
+      - name: Test asset validation
+        run: '"build/La abadia del crimen.app/Contents/MacOS/Abadia" --self-test'
+      - name: Verify architectures and signature
+        run: |
+          archs="$(lipo -archs 'build/La abadia del crimen.app/Contents/MacOS/Abadia')"
+          [[ " $archs " == *" arm64 "* && " $archs " == *" x86_64 "* ]]
+          codesign --verify --deep --strict "build/La abadia del crimen.app"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Abadia-macOS-universal
+          path: build/Abadia-macOS-universal.zip

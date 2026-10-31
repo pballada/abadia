@@ -1,0 +1,12 @@
+.DS_Store
+build/
+.build/
+local-data/
+*.dsk
+*.save
+*.wav
+GraficosCPC
+GraficosVGA
+config.txt
+*.xcuserstate
+xcuserdata/
