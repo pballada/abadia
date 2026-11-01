@@ -23,6 +23,7 @@ class RejillaPantalla;						// definido en RejillaPantalla.h
 
 class BuscadorRutas : public Singleton<BuscadorRutas>
 {
+	friend struct RouteBoundaryRegression;
 // campos
 public:
 	bool generadoCamino;					// indica si se ha generado alg�n camino en esta iteraci�n del bucle principal

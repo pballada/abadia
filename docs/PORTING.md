@@ -6,7 +6,7 @@
 
 - AppKit owns the application, menus, panels, window, keyboard events, and run loop.
 - The original 130 ms gameplay cadence and 60 ms prologue cadence run on the main thread. Rendering and state mutation therefore cannot race. Pausing discards held/pending input, and no catch-up burst runs after focus returns.
-- The engine supplies a 640 × 400 RGBA framebuffer. Core Graphics presents it directly in sRGB with nearest-neighbor scaling, aspect preservation, and a framed native surround. No edge smoothing is applied.
+- The engine supplies a 640 × 400 RGBA framebuffer. Core Graphics presents it directly in sRGB with nearest-neighbor scaling, aspect preservation, and black letterboxing only where the window proportions require it. No edge smoothing is applied.
 - AVAudioPlayer handles optional WAV music and sound effects. No external codec libraries are needed.
 - Apple's GameController framework supplies D-pad, left-stick, and button state.
 - A staged, SHA-256-validated import keeps disk data outside the bundle. The working directory is explicitly set to Application Support before the inherited relative-path loader and save system run.
@@ -30,3 +30,18 @@
 ## Save integrity (0.2)
 
 New saves append a versioned SHA-256 footer to the inherited text payload. The loader checks it before the legacy deserializer can mutate the world. Writes go to a sibling temporary file and replace the slot by rename only after close and sealing succeed; configuration metadata is updated afterwards. Configuration writes use a sibling temporary file too. This protects against accidental corruption and incomplete writes; it is not authentication of untrusted saves. Earlier unsealed saves are rejected without modifying them.
+
+## Screen-boundary path reconstruction fix
+
+The 2026-11-01 crash report identified an assertion in
+`BuscadorRutas::reconstruyeCamino` when its simulated character left the central
+20 × 20 grid. Leaving a slope can advance two cells while search waypoints are
+one cell apart. Reconstruction now ends the valid movement prefix at that
+boundary; the existing command terminator requests a fresh route after execution.
+The live character position is restored after planning as before. Failed height
+queries also stop reconstruction before their output values can be used.
+
+`Tests/RouteBoundaryRegression.h` constructs this slope-exit scenario. The
+unfixed engine aborts at the same assertion as the reported crash; the fixed
+engine preserves the live position and emits a movement command followed by
+the replan command. The fixture runs at the end of the real-data smoke test.

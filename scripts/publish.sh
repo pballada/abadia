@@ -15,7 +15,7 @@ if git remote get-url origin >/dev/null 2>&1; then
 else
     git remote add origin "$expected"
 fi
-git add .gitignore Makefile README.md LICENSE.md Sources Resources scripts docs .github
+git add .gitignore Makefile README.md LICENSE.md Sources Resources Tests scripts docs .github
 if ! git diff --cached --quiet; then
     git commit -m "Add native macOS port of La abadia del crimen"
 fi

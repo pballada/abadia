@@ -1088,7 +1088,9 @@ void BuscadorRutas::reconstruyeCamino(PersonajeConIA *pers)
 			}
 
 			// obtiene la altura de las posiciones hacia las que se va a mover
-			rejilla->obtenerAlturaPosicionesAvance(pers, difAltura1, difAltura2, avanceX, avanceY);
+            // A local route can end at a screen/floor boundary. Never use
+            // uninitialized height deltas if the simulated position left it.
+            if (!rejilla->obtenerAlturaPosicionesAvance(pers, difAltura1, difAltura2, avanceX, avanceY)) return;
 
 			// escribe un comando dependiendo de si sube, baja o se mantiene
 			pers->avanzaPosicion(difAltura1, difAltura2, avanceX, avanceY);
@@ -1107,7 +1109,11 @@ void BuscadorRutas::reconstruyeCamino(PersonajeConIA *pers)
 
 		// obtiene la posici?n del personaje con respecto a las 20x20 posiciones centrales de la rejilla
 		bool noHayError = rejilla->ajustaAPosRejilla(pers->posX, pers->posY, posXRejilla, posYRejilla);
-		assert(noHayError);
+        // Leaving a slope can advance two cells, beyond the central 20x20
+        // grid before all one-cell search waypoints have been consumed.
+        // Keep the valid movement prefix; grabaComandosCamino appends the
+        // replan instruction and restores the live character state.
+        if (!noHayError) return;
 
 		// comprueba si ha llegado a la posici?n de destino antes de sacar m?s valores de la pila
 		llegoADestino = ((posXRejilla == posXDest) && (posYRejilla == posYDest));

@@ -21,3 +21,19 @@ Upstream game data used for local tests is excluded from source and distributabl
 The local real-data check now covers all seven slot round trips, a corrupted payload, an empty slot, and an unwritable staging path. Rejected loads preserve the current player position; failed overwrites preserve the previous file. This is targeted regression coverage, not a completed seven-day playthrough.
 
 The 0.2 regression scenario passed locally with AddressSanitizer and UndefinedBehaviorSanitizer (leak detection disabled for the process-lifetime engine). The first-launch guide was also opened and dismissed through the native UI.
+
+## 0.2.1 crash fix and presentation cleanup
+
+The maintainer's 2026-11-01 crash report identified SIGABRT at
+`BuscadorRutas.cpp:1110`, inside `reconstruyeCamino`. A new slope-exit fixture
+reproduced that exact assertion in the unmodified engine (exit status 134).
+With the boundary check corrected, the fixture passes: planning restores the
+original live position and emits the slope movement followed by a replan command.
+The real-data smoke test, all seven save slots, and the fixture pass with
+AddressSanitizer and UndefinedBehaviorSanitizer (leak detection disabled).
+
+The native title screen was inspected after removal of the decorative frame and
+key legend. The icon's outer emerald tile was removed with the built-in image
+editing tool; its packaging script regenerates all icon sizes from the new
+transparent master. The existing notarized 0.2.0 release is not modified by these
+source changes. A new 0.2.1 distribution requires its own signing/notarization.

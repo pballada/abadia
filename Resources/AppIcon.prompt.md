@@ -1,7 +1,7 @@
 # App icon artwork
 
 Created with the built-in image generation tool. Master: `AppIcon-master.png`.
-The gold Gothic doorway, emerald stone, and crimson manuscript connect the
+The gold Gothic doorway and crimson manuscript connect the
 icon to the abbey and its central mystery. No game ROM artwork was used.
 
 Regenerate the macOS ICNS representations from the checked-in master:
@@ -11,7 +11,11 @@ swift scripts/generate-icon.swift
 make package
 ```
 
-## Generation prompt
+## Frameless edit prompt
+
+Edit this macOS game icon. Remove ONLY the outer emerald rounded-square backing tile and its thin gold perimeter rim. Make all the area outside the Gothic architectural silhouette fully transparent, including the outer emerald side strips and bottom slab/backplate. Preserve the golden Gothic arch itself, its three columns on each side, the dark interior corridor with amber window light, and the red medieval book in front, with the same arrangement, shapes, scale, textures and colors. Keep the architectural arch intact: the user is removing the enclosing app-icon tile/frame, not the arch. The finished icon must be a free-standing cutout of the abbey doorway and crimson book, with real alpha transparency around its irregular silhouette. No new rounded square, no enclosing border, no extra frame, no text. Refine only the cut edges naturally. Do not add any objects.
+
+## Original generation prompt
 
 Use case: stylized-concept.
 Asset type: production macOS application icon for the native game "La abadía del crimen", a medieval abbey murder mystery.

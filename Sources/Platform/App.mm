@@ -8,6 +8,7 @@
 #include "Pergamino.h"
 #include "Logica.h"
 #include "Personaje.h"
+#include "../../Tests/RouteBoundaryRegression.h"
 #include <unistd.h>
 #include <algorithm>
 #include <set>
@@ -61,23 +62,11 @@ static bool WriteFrame(NSString *path) {
 - (void)mouseDown:(NSEvent *)event { [self.window makeFirstResponder:self]; }
 - (void)drawRect:(NSRect)dirty {
     if (self.ready) {
-        NSColor *top = [NSColor colorWithRed:0.085 green:0.105 blue:0.102 alpha:1];
-        NSColor *bottom = [NSColor colorWithRed:0.025 green:0.035 blue:0.034 alpha:1];
-        [[[NSGradient alloc] initWithStartingColor:top endingColor:bottom] drawInRect:self.bounds angle:90];
-        CGFloat margin = self.bounds.size.width < 700 ? 16 : 32;
-        CGFloat scale = MIN((self.bounds.size.width-2*margin)/640.0, (self.bounds.size.height-88)/400.0);
+        [NSColor.blackColor setFill]; NSRectFill(self.bounds);
+        CGFloat scale = MIN(self.bounds.size.width/640.0,self.bounds.size.height/400.0);
         // Align the destination to backing pixels and preserve the original 8:5 frame.
         NSRect rect = NSMakeRect((self.bounds.size.width-640*scale)/2, (self.bounds.size.height-400*scale)/2, 640*scale, 400*scale);
         rect = [self backingAlignedRect:rect options:NSAlignAllEdgesNearest];
-        [NSGraphicsContext saveGraphicsState];
-        NSShadow *shadow = [NSShadow new]; shadow.shadowColor = [NSColor colorWithWhite:0 alpha:0.65];
-        shadow.shadowBlurRadius = 24; shadow.shadowOffset = NSMakeSize(0, -5); [shadow set];
-        [NSColor.blackColor setFill]; NSRectFill(rect);
-        [NSGraphicsContext restoreGraphicsState];
-        [[NSColor colorWithRed:0.60 green:0.51 blue:0.34 alpha:0.45] setStroke];
-        NSFrameRectWithWidth(NSInsetRect(rect,-1,-1),1);
-        [self text:@"L A   A B A D Í A   D E L   C R I M E N" y:15 size:10 color:[NSColor colorWithWhite:0.72 alpha:1] serif:NO];
-        [self text:@"↑  WALK     ← →  TURN     SPACE  DROP     ESC  MENU     P  PAUSE" y:self.bounds.size.height-25 size:10 color:[NSColor colorWithWhite:0.52 alpha:1] serif:NO];
         CGContextRef ctx = NSGraphicsContext.currentContext.CGContext;
         CGContextSaveGState(ctx);
         CGContextSetInterpolationQuality(ctx, kCGInterpolationNone);
@@ -416,6 +405,7 @@ static int SmokeTest(NSString *source, NSString *output) {
     }
     for (int i=0;i<500;++i) tick();
     ok &= check(true,"500 additional game ticks complete");
+    ok &= check(Abadia::RouteBoundaryRegression::run(),"screen-exit path planning preserves character state and avoids abort");
     chdir(cwd.fileSystemRepresentation); [fm removeItemAtURL:temp error:nil];
     return ok?0:1;
 }

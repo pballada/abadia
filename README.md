@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="Resources/AppIcon-master.png" alt="Golden Gothic arch and crimson manuscript on emerald stone" width="128">
+<img src="Resources/AppIcon-master.png" alt="Golden Gothic arch and crimson manuscript with a transparent silhouette" width="128">
 
 # La abadía del crimen
 ### A mystery in seven days. A new home on the Mac.
@@ -27,7 +27,7 @@ Explore the abbey as Guillermo, accompanied by Adso, and investigate a series of
 This port runs the reconstructed C++ game directly inside a native AppKit application. Core Graphics draws the scene, AVFoundation plays audio, and Apple’s GameController framework handles controllers. The app runs locally using system frameworks.
 
 - **Original pixel artwork:** the game framebuffer is displayed with nearest-neighbor scaling, preserving the original sprite and stonework edges.
-- **A calmer presentation:** a dark green surround, fine brass frame, restrained control hints, and a pause card over the frozen scene.
+- **Unobstructed play:** the game fills the window while preserving its proportions, with a pause overlay when needed. Controls are available from Help.
 - **Mac controls:** native menus, fullscreen, screenshot export, keyboard shortcuts, automatic pause when switching apps, and buffered quick key taps.
 - **Keep your progress:** seven in-game save slots, with data and preferences stored in Application Support.
 - **Universal app:** builds for Apple Silicon and Intel from the same source tree, targeting macOS 13 and later.
@@ -74,7 +74,9 @@ Data is copied locally to `~/Library/Application Support/Abadia/roms/abadia`. Sa
 
 ## Source update: 0.2.1
 
-Edge smoothing has been removed. New builds always display the original pixels.
+Edge smoothing, the decorative game frame, and its key legend have been removed. New builds display the original pixels. The app icon now has a transparent silhouette.
+
+A path-planning fix prevents an abort when a monk leaves a slope at a local screen boundary.
 The notarized v0.2.0 download below predates this change; choose **View → Original Pixels**
 in that version for the same unfiltered presentation.
 
@@ -114,6 +116,7 @@ The in-game menu provides new game, seven save slots, load, language selection, 
 Sources/
   Core/          Reconstructed game logic, rendering, characters, and save system
   Platform/      Native window, input, audio, asset import, and presentation
+Tests/           Screen-boundary pathfinding regression fixture
 Resources/       App metadata and original macOS icon
 scripts/         Icon generation and repository publishing
 .github/         Universal macOS build workflow
