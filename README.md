@@ -27,6 +27,21 @@ A native macOS version of the 1987 adventure by **Paco Menéndez and Juan Delcá
 
 </div>
 
+<details>
+<summary><b>🇪🇸 En español</b></summary>
+
+Versión nativa para Mac del clásico de 1987 de **Paco Menéndez y Juan Delcán**, inspirado en *El nombre de la rosa*.
+
+1. **[Descarga la app](https://github.com/pballada/abadia/releases/latest/download/Abadia-macOS.zip)** y abre el ZIP.
+2. Arrastra **La abadia del crimen** a **Aplicaciones** y ábrela.
+3. Pulsa **Download Game Data**. La app descarga los datos originales del juego (unos 6 MB) desde el [proyecto Abbey](https://github.com/Samuel85/Abbey) y comprueba cada archivo.
+
+Funciona en Mac con Apple Silicon e Intel con macOS 13 o posterior. Está firmada y notarizada por Apple, y se actualiza sola. Con **View → Original Amstrad Graphics** (⌘G) cambias entre los gráficos remasterizados de 256 colores y los originales del Amstrad CPC. El juego está en castellano por defecto. Se controla con el teclado (flechas o WASD) o con un mando.
+
+Si te gusta, ¡dale una ⭐ al repositorio!
+
+</details>
+
 ## Install
 
 1. **[Download the app](https://github.com/pballada/abadia/releases/latest/download/Abadia-macOS.zip)** and open the ZIP.
