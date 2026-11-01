@@ -42,6 +42,19 @@ This port runs the reconstructed C++ game directly inside a native AppKit applic
 
 The enhanced mode refines the existing pixel art; it does not replace the sprites or environments with newly drawn assets. Screenshots show artwork from the separately imported game data, credited below.
 
+## Download for macOS
+
+**[Download the signed and notarized app](https://github.com/pballada/abadia/releases/download/v0.2.0/Abadia-macOS-notarized.zip)** · [Release notes](https://github.com/pballada/abadia/releases/tag/v0.2.0)
+
+Requires macOS 13 or later. One universal download supports Apple Silicon and Intel.
+Unzip it, move **La abadia del crimen.app** to Applications, and launch it. Import
+supported game data when prompted; the download does not include the original data.
+
+The v0.2.0 download is signed with Developer ID, accepted by Apple's notary service,
+and has the notarization ticket stapled for offline verification. The release includes
+`SHA256SUMS.txt`; verify the downloaded archive with `shasum -a 256 -c SHA256SUMS.txt`
+from the folder containing both files. [Notarization record](docs/releases/v0.2.0-notarization.json).
+
 ## Build and run
 
 Install Xcode or Apple's Command Line Tools, then:
@@ -51,7 +64,7 @@ make -j8
 open "build/La abadia del crimen.app"
 ```
 
-`make universal` builds both `arm64` and `x86_64`. `make package` creates `build/Abadia-macOS-universal.zip`. Builds are ad-hoc signed for local use; they are not Developer ID signed or notarized. You can open the folder in Xcode for source editing; the reproducible build entry point is the Makefile.
+`make universal` builds both `arm64` and `x86_64`. `make package` creates `build/Abadia-macOS-universal.zip`. These development builds are ad-hoc signed for local use. For Developer ID signing, Apple notarization, and ticket stapling, run `./scripts/release.sh` with your signing identity and `notary` Keychain profile available; see the [release guide](docs/RELEASING.md). You can open the folder in Xcode for source editing; the reproducible build entry point is the Makefile.
 
 ## Import game data
 

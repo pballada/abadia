@@ -1,0 +1,37 @@
+{
+  "logFormatVersion": 1,
+  "jobId": "cfea6dea-da27-4c90-8034-44c930c3e61b",
+  "status": "Accepted",
+  "statusSummary": "Ready for distribution",
+  "statusCode": 0,
+  "archiveFilename": "Abadia-notarization-upload.zip",
+  "uploadDate": "2026-11-01T08:52:18.394Z",
+  "sha256": "38b1a669521f3be5e5d6d3f8d5d1613c8d21607d76dad9ffc8a751c74b080b94",
+  "ticketContents": [
+    {
+      "path": "Abadia-notarization-upload.zip/La abadia del crimen.app",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "3062738572e1fa0285481abb83966247bf12f561",
+      "arch": "x86_64"
+    },
+    {
+      "path": "Abadia-notarization-upload.zip/La abadia del crimen.app",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "60e6e0376b2759a6e86c8673cbf54a0eca0b69ec",
+      "arch": "arm64"
+    },
+    {
+      "path": "Abadia-notarization-upload.zip/La abadia del crimen.app/Contents/MacOS/Abadia",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "3062738572e1fa0285481abb83966247bf12f561",
+      "arch": "x86_64"
+    },
+    {
+      "path": "Abadia-notarization-upload.zip/La abadia del crimen.app/Contents/MacOS/Abadia",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "60e6e0376b2759a6e86c8673cbf54a0eca0b69ec",
+      "arch": "arm64"
+    }
+  ],
+  "issues": null
+}
