@@ -14,53 +14,12 @@
 #include <cstdio>
 
 #import "Presentation.h"
-static bool EdgeSmoothingEnabled() {
-    return ![NSUserDefaults.standardUserDefaults boolForKey:@"OriginalPixels"];
-}
-static CGImageRef FrameImage() { return CreateGameImage(EdgeSmoothingEnabled()); }
+static CGImageRef FrameImage() { return CreateGameImage(); }
 static bool WriteFrame(NSString *path) {
     CGImageRef image = FrameImage();
     NSBitmapImageRep *bitmap = [[NSBitmapImageRep alloc] initWithCGImage:image];
     CGImageRelease(image);
     return [[bitmap representationUsingType:NSBitmapImageFileTypePNG properties:@{}] writeToFile:path atomically:YES];
-}
-
-// Documentation captures use one frozen framebuffer for both render modes.
-// Crops are enlarged with nearest-neighbor sampling so browser downscaling
-// cannot hide or invent the edge changes being compared.
-static bool WriteComparisonImages(NSString *directory) {
-    NSError *error = nil;
-    if (![NSFileManager.defaultManager createDirectoryAtPath:directory withIntermediateDirectories:YES attributes:nil error:&error]) return false;
-    bool ok = true;
-    for (bool smooth : {false,true}) {
-        CGImageRef frame = CreateGameImage(smooth);
-        NSString *mode = smooth ? @"smoothed" : @"original";
-        NSBitmapImageRep *full = [[NSBitmapImageRep alloc] initWithCGImage:frame];
-        ok &= [[full representationUsingType:NSBitmapImageFileTypePNG properties:@{}]
-            writeToFile:[directory stringByAppendingPathComponent:[NSString stringWithFormat:@"gameplay-%@.png",mode]] atomically:YES];
-        const CGRect regions[] = {CGRectMake(112,48,80,80), CGRectMake(32,40,80,80)};
-        const char *names[] = {"characters", "masonry"};
-        CGFloat factor = smooth ? 4 : 2;
-        for (int i=0;i<2;++i) {
-            CGRect region = regions[i];
-            region.origin.x*=factor; region.origin.y*=factor;
-            region.size.width*=factor; region.size.height*=factor;
-            CGImageRef crop = CGImageCreateWithImageInRect(frame,region);
-            CGColorSpaceRef color = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-            CGContextRef context = CGBitmapContextCreate(nullptr,480,480,8,480*4,color,kCGImageAlphaPremultipliedLast);
-            CGColorSpaceRelease(color);
-            CGContextSetInterpolationQuality(context,kCGInterpolationNone);
-            CGContextDrawImage(context,CGRectMake(0,0,480,480),crop);
-            CGImageRef enlarged = CGBitmapContextCreateImage(context);
-            NSBitmapImageRep *bitmap = [[NSBitmapImageRep alloc] initWithCGImage:enlarged];
-            NSString *name = [NSString stringWithFormat:@"detail-%s-%@.png",names[i],mode];
-            ok &= [[bitmap representationUsingType:NSBitmapImageFileTypePNG properties:@{}]
-                writeToFile:[directory stringByAppendingPathComponent:name] atomically:YES];
-            CGImageRelease(enlarged); CGContextRelease(context); CGImageRelease(crop);
-        }
-        CGImageRelease(frame);
-    }
-    return ok;
 }
 
 @class AppDelegate;
@@ -232,9 +191,6 @@ static bool WriteComparisonImages(NSString *directory) {
     fullscreen.keyEquivalentModifierMask = NSEventModifierFlagCommand|NSEventModifierFlagControl;
     add(view,@"Original Size",@selector(originalSize:),@"1");
     add(view,@"Double Size",@selector(doubleSize:),@"2");
-    [view addItem:NSMenuItem.separatorItem];
-    add(view,@"Edge Smoothing",@selector(edgeSmoothing:),@"");
-    add(view,@"Original Pixels",@selector(originalPixels:),@"");
     NSMenu *help = submenu(@"Help");
     add(help,@"Getting Started…",@selector(gettingStarted:),@"");
     add(help,@"How to Play",@selector(help:),@"?");
@@ -340,17 +296,7 @@ static bool WriteComparisonImages(NSString *directory) {
         if (!wasPaused) sys->setAudioPaused(false);
     }];
 }
-- (void)edgeSmoothing:(id)sender {
-    [NSUserDefaults.standardUserDefaults setBool:NO forKey:@"OriginalPixels"];
-    self.gameView.needsDisplay=YES;
-}
-- (void)originalPixels:(id)sender {
-    [NSUserDefaults.standardUserDefaults setBool:YES forKey:@"OriginalPixels"];
-    self.gameView.needsDisplay=YES;
-}
 - (BOOL)validateMenuItem:(NSMenuItem *)item {
-    if (item.action == @selector(edgeSmoothing:)) item.state=EdgeSmoothingEnabled()?NSControlStateValueOn:NSControlStateValueOff;
-    if (item.action == @selector(originalPixels:)) item.state=EdgeSmoothingEnabled()?NSControlStateValueOff:NSControlStateValueOn;
     if (item.action == @selector(togglePause:)) { item.title = self.paused ? @"Resume" : @"Pause"; return self.gameView.ready; }
     if (item.action == @selector(toggleMute:)) item.state = sys->muted ? NSControlStateValueOn : NSControlStateValueOff;
     if (item.action == @selector(gameMenu:) || item.action == @selector(screenshot:) || item.action == @selector(showSaves:)) return self.gameView.ready;
@@ -367,7 +313,7 @@ static bool WriteComparisonImages(NSString *directory) {
     }];
 }
 - (void)about:(id)sender {
-    [self alert:@"La abadía del crimen · 0.2.0" detail:@"Original game: Paco Menéndez and Juan Delcán (1987).\nC++ reconstruction: Manuel Abadía / VIGASOCO.\nSDL adaptation: Luzbel. Graphics: Antonio Giner.\nAbbey: Samuel Salinas Almaguer and contributors.\nNative macOS port: pballada.\n\nA noncommercial preservation project. Original assets are imported separately. See README and VIGASOCO.txt for attribution and terms."];
+    [self alert:@"La abadía del crimen · 0.2.1" detail:@"Original game: Paco Menéndez and Juan Delcán (1987).\nC++ reconstruction: Manuel Abadía / VIGASOCO.\nSDL adaptation: Luzbel. Graphics: Antonio Giner.\nAbbey: Samuel Salinas Almaguer and contributors.\nNative macOS port: pballada.\n\nA noncommercial preservation project. Original assets are imported separately. See README and VIGASOCO.txt for attribution and terms."];
 }
 - (void)gettingStarted:(id)sender {
     NSAlert *guide = [NSAlert new];
@@ -390,7 +336,7 @@ static bool WriteComparisonImages(NSString *directory) {
 }
 @end
 
-static int SmokeTest(NSString *source, NSString *output, NSString *comparisonDirectory) {
+static int SmokeTest(NSString *source, NSString *output) {
     NSFileManager *fm = NSFileManager.defaultManager;
     NSURL *temp = [NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString]];
     NSError *error = nil;
@@ -426,7 +372,6 @@ static int SmokeTest(NSString *source, NSString *output, NSString *comparisonDir
     for (int i=0;i<120;++i) tick();
     ok &= check(std::any_of(sys->framebuffer.begin(),sys->framebuffer.end(),[](uint32_t n){return (n&0xffffff)!=0;}),"game produces visible pixels");
     if (output) ok &= check(WriteFrame(output),"gameplay screenshot written");
-    if (comparisonDirectory) ok &= check(WriteComparisonImages(comparisonDirectory),"comparison images captured from the same frame");
     int savedX=game->personajes[0]->posX, savedY=game->personajes[0]->posY;
     engine.changeState(MENU); game->seleccionado=2; sys->pad.button3=true; tick();
     game->seleccionado=0; sys->pad.button3=true; tick();
@@ -479,7 +424,7 @@ int main(int argc, const char *argv[]) {
     @autoreleasepool {
         if (argc>1 && std::string(argv[1])=="--self-test") return RunSelfTests();
         if (argc>2 && std::string(argv[1])=="--smoke-test")
-            return SmokeTest(@(argv[2]),argc>3?@(argv[3]):nil,argc>4?@(argv[4]):nil);
+            return SmokeTest(@(argv[2]),argc>3?@(argv[3]):nil);
         [NSApplication sharedApplication];
         [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
         AppDelegate *delegate = [AppDelegate new]; NSApp.delegate=delegate;
