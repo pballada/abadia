@@ -6,7 +6,7 @@
 
 - AppKit owns the application, menus, panels, window, keyboard events, and run loop.
 - The original 130 ms gameplay cadence and 60 ms prologue cadence run on the main thread. Rendering and state mutation therefore cannot race. Pausing discards held/pending input, and no catch-up burst runs after focus returns.
-- The engine supplies a 640 × 400 RGBA buffer. Enhanced presentation recovers its original 320 × 200 VGA grid and applies two Scale2x passes to produce a 1280 × 800 frame. Original Pixels displays the untouched engine buffer. Both use sRGB, aspect preservation, and a framed native surround. The selected mode persists in user defaults.
+- The engine supplies a 640 × 400 RGBA buffer. Edge Smoothing presentation recovers its original 320 × 200 VGA grid and applies two Scale2x passes to produce a 1280 × 800 frame. Original Pixels displays the untouched engine buffer. Both use sRGB, aspect preservation, and a framed native surround. The selected mode persists in user defaults.
 - AVAudioPlayer handles optional WAV music and sound effects. No external codec libraries are needed.
 - Apple's GameController framework supplies D-pad, left-stick, and button state.
 - A staged, SHA-256-validated import keeps disk data outside the bundle. The working directory is explicitly set to Application Support before the inherited relative-path loader and save system run.
@@ -30,3 +30,19 @@
 ## Save integrity (0.2)
 
 New saves append a versioned SHA-256 footer to the inherited text payload. The loader checks it before the legacy deserializer can mutate the world. Writes go to a sibling temporary file and replace the slot by rename only after close and sealing succeed; configuration metadata is updated afterwards. Configuration writes use a sibling temporary file too. This protects against accidental corruption and incomplete writes; it is not authentication of untrusted saves. Earlier unsealed saves are rejected without modifying them.
+
+## Reproducing the README comparison
+
+After building, supply local data to the existing smoke-test command and add an
+absolute output directory as its last argument:
+
+```sh
+build/obj-arm64-release/Abadia --smoke-test /absolute/path/to/roms/abadia /tmp/gameplay.png "$PWD/docs/images"
+```
+
+The capture uses one frozen framebuffer for both modes, independent of user
+preferences. Full frames are 640 × 400 (original) and 1280 × 800 (smoothed).
+Character and masonry crops cover matching 80 × 80 source-pixel regions and
+are exported at 480 × 480 using nearest-neighbor sampling. No separate frames,
+generative edits, extra sharpening, or color adjustments are used. The native
+renderer itself produces the comparison images.
