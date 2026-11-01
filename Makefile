@@ -14,7 +14,7 @@ FLAGS += -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer
 else
 FLAGS += -O2 -g
 endif
-FRAMEWORKS := -framework AppKit -framework AVFoundation -framework GameController -framework QuartzCore
+FRAMEWORKS := -framework AppKit -framework AVFoundation -framework GameController -framework QuartzCore -framework Security
 .PHONY: all run clean test test-audio universal package
 all: $(OBJ)/Abadia
 	@mkdir -p "$(APP)/Contents/MacOS" "$(APP)/Contents/Resources"

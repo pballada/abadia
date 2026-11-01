@@ -9,7 +9,7 @@ release_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString
 release_dir="${RELEASE_DIR:-$PWD/build/releases/$release_version}"
 release_app="$release_dir/La abadia del crimen.app"
 release_upload="$release_dir/Abadia-notarization-upload.zip"
-release_zip="$release_dir/Abadia-macOS-notarized.zip"
+release_zip="$release_dir/Abadia-macOS.zip"
 
 if [ -e "$release_app" ] || [ -e "$release_zip" ]; then
     echo "A release already exists in $release_dir. Move it aside or set RELEASE_DIR to a fresh directory." >&2
@@ -66,5 +66,5 @@ spctl --assess --type execute --verbose=2 "$release_app"
 
 # Package again AFTER stapling: this is the archive to distribute.
 ditto -c -k --keepParent "$release_app" "$release_zip"
-(cd "$release_dir" && shasum -a 256 "Abadia-macOS-notarized.zip" >SHA256SUMS.txt)
+(cd "$release_dir" && shasum -a 256 "Abadia-macOS.zip" >SHA256SUMS.txt)
 echo "Notarized release: $release_zip"

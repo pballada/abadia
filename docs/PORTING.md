@@ -6,12 +6,15 @@
 
 - AppKit owns the application, menus, panels, window, keyboard events, and run loop.
 - The original 130 ms gameplay cadence and 60 ms prologue cadence run on the main thread. Rendering and state mutation therefore cannot race. Pausing discards held/pending input, and no catch-up burst runs after focus returns.
-- The engine supplies a 640 × 400 RGBA framebuffer. Core Graphics presents it directly in sRGB with nearest-neighbor scaling, aspect preservation, and black letterboxing only where the window proportions require it. No edge smoothing is applied.
-- AVAudioPlayer handles optional WAV music and sound effects. No external codec libraries are needed.
+- The engine supplies a 640 × 400 RGBA framebuffer. Core Graphics presents it in sRGB, keeping its 8:5 proportions with black letterboxing only where the window requires it. Whole-number scales use nearest neighbour. Other scales use sharp bilinear: nearest neighbour up to the next whole multiple, then one smooth resample. Every source pixel is then the same size on screen, avoiding the alternating 3- and 4-pixel columns of fractional nearest-neighbour scaling. **Pixel-Perfect Scaling** restricts the image to whole multiples.
+- AVAudioPlayer handles optional WAV music and sound effects at their native sample rates (8-bit/16-bit mono, 11–22 kHz in the Abbey pack). Abbey's SDL_mixer build resamples everything through a 22,050 Hz mixer. All players are prepared when the engine starts, so the first effect plays without delay. No external codec libraries are needed.
 - Apple's GameController framework supplies D-pad, left-stick, and button state.
+- **Download Game Data** fetches the pack from the pinned Abbey commit `048c314` on GitHub. Every file is checked against a pinned SHA-256: required files fail the download, and mismatched optional audio is skipped. It then uses the same staged import as a local folder.
 - A staged, SHA-256-validated import keeps disk data outside the bundle. The working directory is explicitly set to Application Support before the inherited relative-path loader and save system run.
 
 ## Changes to inherited code
+
+- Added `Juego::usaGraficosCPC(bool)`, the public entry point to the engine's existing graphics swap (`cambioCPC_VGA`). Upstream never called that swap, so `GraficosCPC` was loaded but never shown. The swap now redraws in place only during gameplay; other states redraw when entered. The CPC pack includes its own palette, so switching gives the original Amstrad colours.
 
 - Removed the unused SDL include from the renderer and replaced the SDL file reader with a checked binary `ifstream` reader. Missing/short files now fail initialization.
 - Renamed the engine's global `Rect` to `GameRect` to avoid the macOS SDK's legacy `Rect` type.
@@ -45,3 +48,14 @@ queries also stop reconstruction before their output values can be used.
 unfixed engine aborts at the same assertion as the reported crash; the fixed
 engine preserves the live position and emits a movement command followed by
 the replan command. The fixture runs at the end of the real-data smoke test.
+
+## Self-updater (0.3)
+
+`Sources/Platform/Updater.mm` reads `releases/latest` from the GitHub API at most once a day; **Check for Updates…** checks immediately. Automatic checks run only in Developer ID builds, so development builds don't prompt. An update proceeds only if all of these hold:
+
+1. The release tag (`vX.Y.Z`) is numerically newer than the running version.
+2. The asset `Abadia-macOS.zip` is downloaded and extracted with `ditto` on the app's own volume.
+3. The extracted app passes `SecStaticCodeCheckValidity` (all architectures, strict, nested code). The requirement is: Apple-anchored, Developer ID Application certificate, team `5UXXXESGMK`, identifier `net.pballada.abadia`.
+4. The extracted app's own version is newer as well.
+
+The bundle is then swapped with `replaceItemAtURL`. A detached shell waits for the process to exit and reopens the app. If the app is translocated or its folder isn't writable, the player is sent to the release page instead. Game data and saves live in Application Support and are never touched.

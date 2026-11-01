@@ -16,6 +16,8 @@ jobs:
         run: |
           make test-audio
           "build/La abadia del crimen.app/Contents/MacOS/Abadia" --self-test
+      - name: Verify the one-click game data download
+        run: '"build/La abadia del crimen.app/Contents/MacOS/Abadia" --download-test'
       - name: Verify architectures and signature
         run: |
           archs="$(lipo -archs 'build/La abadia del crimen.app/Contents/MacOS/Abadia')"

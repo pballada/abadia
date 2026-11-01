@@ -5,93 +5,78 @@
 # La abadía del crimen
 ### A mystery in seven days. A new home on the Mac.
 
-A native macOS port of the 1987 adventure by **Paco Menéndez and Juan Delcán**.
+A native macOS version of the 1987 adventure by **Paco Menéndez and Juan Delcán**.
 
 ![macOS 13+](https://img.shields.io/badge/macOS-13%2B-202d28?logo=apple&logoColor=white)
 ![Universal binary](https://img.shields.io/badge/Apple_Silicon_%2B_Intel-universal-bba16d)
-![Status](https://img.shields.io/badge/status-playable_port-536b5d)
 [![macOS build](https://github.com/pballada/abadia/actions/workflows/macos.yml/badge.svg)](https://github.com/pballada/abadia/actions/workflows/macos.yml)
 
-[Download](#download-for-macos) · [Game data](#import-game-data) · [Controls](#play) · [Development](#development) · [Credits](#source-and-attribution)
+### [⬇︎ Download for Mac](https://github.com/pballada/abadia/releases/latest/download/Abadia-macOS.zip)
 
-<img src="docs/images/gameplay-original.png" alt="Guillermo and Adso arrive at the abbey, in the original pixel artwork" width="960">
+[Install](#install) · [Graphics](#two-ways-to-see-the-abbey) · [Controls](#play) · [Development](#development) · [Credits](#credits-and-license)
 
-*Seven days. An isolated abbey. A secret hidden among its books.*
+<img src="docs/images/gameplay-remake.png" alt="Guillermo and Adso in the abbey cloister, in the 256-colour remake graphics" width="49%"> <img src="docs/images/gameplay-amstrad.png" alt="The same scene in the original 1987 Amstrad CPC graphics" width="49%">
+
+*Left: 256-colour remake graphics. Right: the original 1987 Amstrad CPC look, one menu click away.*
 
 </div>
 
-## The original adventure, thoughtfully presented
+## Install
 
-Explore the abbey as Guillermo, accompanied by Adso, and investigate a series of mysterious deaths. The monks follow their own routines; your investigation must fit around the abbey’s services, meals, and restrictions.
+1. **[Download the app](https://github.com/pballada/abadia/releases/latest/download/Abadia-macOS.zip)** and open the ZIP.
+2. Drag **La abadia del crimen** into your **Applications** folder and open it.
+3. Click **Download Game Data**.
 
-This port runs the reconstructed C++ game directly inside a native AppKit application. Core Graphics draws the scene, AVFoundation plays audio, and Apple’s GameController framework handles controllers. The app runs locally using system frameworks.
+That's it. The app fetches the original game data (about 6 MB) from the [Abbey project](https://github.com/Samuel85/Abbey/tree/048c3141f0bd1772c8b0bba82d18ebc72d837be1/build/roms/abadia), checks every file against a known SHA-256 checksum, and starts the game. The app is signed with Developer ID and notarized by Apple. It runs natively on Apple Silicon and Intel Macs with macOS 13 or later.
 
-- **Original pixel artwork:** the game framebuffer is displayed with nearest-neighbor scaling, preserving the original sprite and stonework edges.
-- **Unobstructed play:** the game fills the window while preserving its proportions, with a pause overlay when needed. Controls are available from Help.
-- **Mac controls:** native menus, fullscreen, screenshot export, keyboard shortcuts, automatic pause when switching apps, and buffered quick key taps.
-- **Keep your progress:** seven in-game save slots, with data and preferences stored in Application Support.
-- **Universal app:** builds for Apple Silicon and Intel from the same source tree, targeting macOS 13 and later.
-
-## Download for macOS
-
-**[Download the signed and notarized app](https://github.com/pballada/abadia/releases/download/v0.2.1/Abadia-macOS-notarized.zip)** · [Release notes](https://github.com/pballada/abadia/releases/tag/v0.2.1)
-
-1. Download and unzip the app.
-2. Move **La abadia del crimen.app** to **Applications** and open it.
-3. On the first launch, select your [game data folder](#import-game-data) when prompted. Existing imports and saves are kept when you update.
-
-That's it—no Terminal commands or Xcode needed. Requires macOS 13 or later; the same app runs on Apple Silicon and Intel. The download is signed with Developer ID and notarized by Apple. Original game data is supplied separately.
+**Updates install themselves.** The app checks GitHub for a new release once a day and offers to install it. It verifies Apple's signature and the release team before replacing itself, then relaunches. Your game data and saves are kept. Use **Abadía → Check for Updates…** to check now, or turn off automatic checks in the same menu. Updates can only install in place when the app is in a folder you can write to, such as Applications.
 
 <details>
-<summary>Optional: verify the download</summary>
+<summary>Already have the game files, or prefer to get them yourself?</summary>
 
-Download `SHA256SUMS.txt` from the release into the same folder as the ZIP and run `shasum -a 256 -c SHA256SUMS.txt`. This extra check is optional. The v0.2.1 app also carries a stapled notarization ticket for offline verification. [Notarization record](docs/releases/v0.2.1-notarization.json).
+Click **Use a Folder…** instead and choose a folder containing these files. It can be an Abbey checkout, its `build` folder or `roms/abadia`.
+
+| File | Size | Required |
+| --- | ---: | :---: |
+| `abadia.dsk` | 160,768 bytes | ✓ |
+| `GraficosCPC` | 174,065 bytes | ✓ |
+| `GraficosVGA` | 174,065 bytes | ✓ |
+| `inicio.wav`, `final.wav`, `fondo.wav` (music) | | optional |
+| `abrir`, `aporrear`, `campanas`, `cerrar`, `coger`, `dejar`, `espejo`, `pasos`, `tintineo` (`.wav` effects) | | optional |
+
+Download them individually from [Samuel85/Abbey › build/roms/abadia](https://github.com/Samuel85/Abbey/tree/048c3141f0bd1772c8b0bba82d18ebc72d837be1/build/roms/abadia). Only these exact versions are accepted; the checksums are in [`Sources/Platform/Assets.mm`](Sources/Platform/Assets.mm). Without the WAV files the game runs silently.
+
+To replace the data later, for example to add missing audio, quit the app and reopen it while holding **Option**.
 
 </details>
 
-## Import game data
+<details>
+<summary>Where your data lives, and what the app connects to</summary>
 
-On first launch, choose **Import Game Data…** and select your Abbey folder, its `build` folder, or `roms/abadia`. The importer searches these supported locations for:
+The game data and seven save slots are stored in `~/Library/Application Support/Abadia`; **File → Show Saves in Finder** opens that folder. Deleting the app keeps it.
 
-| File | Required size |
-| --- | ---: |
-| `abadia.dsk` | 160,768 bytes |
-| `GraficosCPC` | 174,065 bytes |
-| `GraficosVGA` | 174,065 bytes |
+The app makes network requests only to GitHub: when you click **Download Game Data**, and when it checks for and downloads updates. Nothing about you or your games is uploaded.
 
-This version supports the unchanged data layout used by [Samuel85/Abbey](https://github.com/Samuel85/Abbey/tree/048c3141f0bd1772c8b0bba82d18ebc72d837be1/build/roms/abadia). A disk image alone is insufficient: the reconstructed renderer also needs both graphics packs. SHA-256 checks reject unsupported or corrupt files before the legacy engine runs. No game assets are included in this repository or the packaged app. Supply a data copy you are entitled to use.
+To verify a download by hand, put `SHA256SUMS.txt` from the [release page](https://github.com/pballada/abadia/releases/latest) next to the ZIP and run `shasum -a 256 -c SHA256SUMS.txt`.
 
-Optional WAV files in the same folder provide music and effects: `inicio`, `final`, `fondo`, `abrir`, `aporrear`, `campanas`, `cerrar`, `coger`, `dejar`, `espejo`, `pasos`, and `tintineo` (each with `.wav`). Without them the game runs silently.
+</details>
 
-For sound, import a folder that includes these WAV files alongside the three required data files. Check **Game → Mute Audio** (⌘U) and your Mac's output volume if playback is silent.
+## Two ways to see the abbey
 
-Data is copied locally to `~/Library/Application Support/Abadia/roms/abadia`. Saves and language settings live in `~/Library/Application Support/Abadia`. The application bundle stays read-only. Nothing is uploaded, and the app makes no network requests.
+**View → Original Amstrad Graphics** (⌘G) switches between:
 
-## What’s new in 0.2.1
+- **Remake graphics** (default): Antonio Giner's 256-colour redraw of the sprites and stonework, the same as Abbey and VIGASOCO.
+- **Original Amstrad graphics**: the four-colour palette and art of the 1987 Amstrad CPC release.
 
-Edge smoothing, the decorative game frame, and its key legend have been removed. New builds display the original pixels. The app icon now has a transparent silhouette.
+You can switch at any time, even mid-game. Your choice is remembered.
 
-A path-planning fix prevents an abort when a monk leaves a slope at a local screen boundary.
-These changes are included in the v0.2.1 download above.
+The picture always keeps the original 8:5 proportions and fills the window. At any window size, every game pixel is drawn the same size. Sizes that aren't a whole multiple are scaled with *sharp bilinear*: the image is enlarged by a whole number using nearest neighbour, then resampled once. Pixels stay crisp, without the uneven columns plain nearest-neighbour scaling produces. For exact whole-number scaling with black borders, turn on **View → Pixel-Perfect Scaling**. **View → Original Size** and **Double Size** (⌘1 and ⌘2) give exact sizes.
 
-## Upcoming in 0.2.2
-
-The source and local development build now start the title/prologue, background, and ending tracks in the appropriate game states. Muting and pausing preserve the music position; unmuting resumes playback. Music changes leave sound effects playing. These fixes are not included in the v0.2.1 download yet.
-
-To add audio missing from an earlier import, the new build lets you quit and reopen while holding **Option**, then select the complete data folder. This replaces imported data and keeps your saves.
-
-## What’s new in 0.2
-
-- A first-launch guide explains character-relative movement, your arrival at the abbey, saves, and pause. Reopen it with **Help → Getting Started**.
-- The importer recognizes the Abbey project folder as well as the data folder itself.
-- Save slots are replaced atomically and carry an integrity checksum. Corrupt or empty slots are rejected before changing the current world; failed writes preserve the previous slot.
-- Confirmation presses are buffered once, so holding Return or controller A cannot confirm the next screen accidentally.
-
-**Save compatibility:** 0.2 adds an integrity footer. Unsealed saves from 0.1 or other ports are retained on disk but cannot be loaded by 0.2. Keep the earlier app if you need to continue those saves; back up Application Support before overwriting a slot. The checksum detects accidental damage, not maliciously crafted files.
+Music and effects play at their native sample rate through AVFoundation, and they're loaded at startup so the first effect plays without delay.
 
 ## Play
 
-Press Return on the title screen, choose a new game, and press Return to skip the prologue if desired. Follow the abbot when you arrive. Observe the abbey's daily schedule and protect your obsequium.
+Press Return on the title, choose a new game, and press Return again to skip the prologue. When you arrive, follow the abbot. Attend services and meals, and protect your *obsequium*.
 
 | Action | Keyboard | Controller |
 | --- | --- | --- |
@@ -102,57 +87,66 @@ Press Return on the title screen, choose a new game, and press Return to skip th
 | No / secondary action | N / C | B |
 | Drop object | Space | X |
 | Alternate action | Z | Y |
-| Game menu | Escape / ⌘M / 2 | Menu |
+| Game menu (new game, save, load, language) | Escape / ⌘M / 2 | Menu |
 | Pause / resume | P / ⌘P | — |
+| Original Amstrad graphics | ⌘G | — |
 | Fullscreen | ⌃⌘F | — |
 | Mute | ⌘U | — |
 | Screenshot | ⌘S | — |
 
-The in-game menu provides new game, seven save slots, load, language selection, and continue. Spanish is the default; the upstream translations are retained. Movement follows the original turn-and-walk controls, not screen-relative movement. Quick taps are buffered until the next simulation tick. Switching apps automatically pauses play; resume explicitly with P.
+The controls turn Guillermo and walk him forward, as in the original; they aren't screen-relative. Switching to another app pauses the game. Spanish is the default language; the in-game menu also offers the other translations from Abbey.
+
+## How this relates to Abbey
+
+The game itself is the C++ reconstruction from VIGASOCO, as adapted by [Samuel85/Abbey](https://github.com/Samuel85/Abbey). `Sources/Core` is Abbey's engine with small fixes. This project replaces Abbey's SDL front end with native macOS code:
+
+- AppKit for the window, menus and fullscreen
+- Core Graphics for drawing
+- AVFoundation for audio
+- GameController for gamepads
+- An importer and downloader that check every file
+- Crash-safe saves with integrity checks
+- A self-updater
+
+The changes to inherited code are listed in [docs/PORTING.md](docs/PORTING.md). They include a fix for a pathfinding crash and a save serializer fix.
 
 ## Development
 
-### Build and run from source
-
-Install Xcode or Apple's Command Line Tools, then:
+You need Xcode or the Command Line Tools.
 
 ```sh
-make -j8
-open "build/La abadia del crimen.app"
+make -j8 && open "build/La abadia del crimen.app"   # build and run (ad-hoc signed)
+make universal                                      # Apple Silicon + Intel
+make test                                           # asset-free tests
 ```
-
-`make universal` builds both `arm64` and `x86_64`. `make package` creates `build/Abadia-macOS-universal.zip`. These development builds are ad-hoc signed for local use. For Developer ID signing and Apple notarization, see the [release guide](docs/RELEASING.md). The reproducible build entry point is the Makefile.
 
 ```text
-Sources/
-  Core/          Reconstructed game logic, rendering, characters, and save system
-  Platform/      Native window, input, audio, asset import, and presentation
-Tests/           Audio playback and screen-boundary pathfinding regressions
-Resources/       App metadata and original macOS icon
-scripts/         Icon generation and repository publishing
-.github/         Universal macOS build workflow
+Sources/Core/      Reconstructed game logic and renderer (VIGASOCO / Abbey)
+Sources/Platform/  Native window, input, audio, scaling, data download, saves, updater
+Tests/             Audio playback and pathfinding regressions
+Resources/         Info.plist and icon
+scripts/           Signed release, icon generation, publishing
 ```
 
-The [port architecture](docs/PORTING.md) explains the native integration and inherited fixes. The [verification notes](docs/VERIFICATION.md) record what has actually been checked. To contribute, describe the visible problem, keep changes focused, and include build or gameplay evidence appropriate to your change. Please keep ROMs, graphics packs, audio, and personal saves out of commits.
-
-## Verification
+More checks:
 
 ```sh
-make test
+"build/La abadia del crimen.app/Contents/MacOS/Abadia" --download-test     # downloads and verifies the data pack
 "build/La abadia del crimen.app/Contents/MacOS/Abadia" \
-  --smoke-test /absolute/path/to/roms/abadia /tmp/abadia-gameplay.png
-
-make -j8 CONFIG=sanitize
-ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 \
-  build/obj-arm64-sanitize/Abadia --smoke-test /absolute/path/to/roms/abadia
+  --smoke-test /path/to/roms/abadia /tmp/abadia.png                        # plays through menus, saves, both graphics sets
+make -j8 CONFIG=sanitize                                                   # AddressSanitizer + UBSan build
 ```
 
-The asset-free tests cover music transitions, mute/unmute, repeated pause/resume, sound effects, and playback failure recovery using a simulated audio output. They also reject missing, truncated, and corrupt imports without changing the destination. The optional real-data test uses an isolated temporary save directory and exercises the title, menu, prologue, gameplay, player turning, saving, restoring changed player coordinates, all seven save slots, rejection of corrupt and empty slots, a failed overwrite, and hundreds of subsequent simulation ticks. It checks the requested music tracks through title, prologue, gameplay, and ending; this does not verify audible output. It never alters normal player saves. Game data is not downloaded by CI.
+The smoke test uses a temporary save folder and never touches your real saves. Releases are built, signed, notarized and published with `scripts/release.sh`; see [docs/RELEASING.md](docs/RELEASING.md). The auto-updater looks for a GitHub release tagged `vX.Y.Z` with an `Abadia-macOS.zip` asset. What has been tested is recorded in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
-This is an initial playable port, not a claim that every puzzle and ending has been exhaustively replayed. Hardware controller mapping is implemented with Apple's GameController API; actual controller hardware testing remains outstanding. The renderer uses the upstream VGA artwork, with the original pixels and nearest-neighbor scaling. A CPC/VGA artwork switch is not exposed. Legacy saves from other ports are not a supported interchange format.
+Contributions are welcome. Describe the visible problem, keep changes focused, and include evidence that the fix works. Keep disk images, graphics packs, audio and personal saves out of commits.
 
-## Source and attribution
+## Credits and license
 
-The game reconstruction comes from [Abbey](https://github.com/Samuel85/Abbey), pinned to commit `048c3141f0bd1772c8b0bba82d18ebc72d837be1`, building on **Manuel Abadía's VIGASOCO** and the SDL adaptation by **Luzbel**. Abbey's modernized implementation is by **Samuel Salinas Almaguer**, with contributions including **Emilio Moretti**. Remake graphics are credited upstream to **Antonio Giner**. Original game design/programming: **Paco Menéndez**; original artwork: **Juan Delcán**.
+- Original game: **Paco Menéndez and Juan Delcán**, Opera Soft (1987).
+- C++ reconstruction: Manuel Abadía and the VIGASOCO Project Team (2003–2005).
+- SDL adaptation: Luzbel. Remake graphics: Antonio Giner.
+- Abbey: Samuel Salinas Almaguer and contributors, including Emilio Moretti.
+- Native macOS version: pballada (2026).
 
-The original license is preserved verbatim in [Sources/Core/readme.txt](Sources/Core/readme.txt). It permits noncommercial derivatives with attribution and forbids selling VIGASOCO or distributing it with ROM images. This project is a derivative port, not an official VIGASOCO release. See [LICENSE.md](LICENSE.md) and [PORTING.md](docs/PORTING.md).
+This is a **noncommercial** preservation project. The inherited code remains under the VIGASOCO terms in [Sources/Core/readme.txt](Sources/Core/readme.txt); see [LICENSE.md](LICENSE.md). The app and this repository contain no game data. The disk image, graphics and audio belong to their respective rights holders. The app downloads them from the Abbey project only when you ask it to.

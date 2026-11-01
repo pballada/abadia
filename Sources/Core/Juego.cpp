@@ -1295,7 +1295,13 @@ void Juego::cambioCPC_VGA()
 
 	// genera los gr??ficos flipeados en x de las entidades que lo necesiten
 	generaGraficosFlipeados();
-	ReiniciaPantalla();		
+	// Only the gameplay screen can be redrawn in place; other states redraw on entry.
+	if (currentState == PLAY) ReiniciaPantalla();
+}
+
+void Juego::usaGraficosCPC(bool cpc)
+{
+	if (cpc != GraficosCPC) cambioCPC_VGA();
 }
 
 

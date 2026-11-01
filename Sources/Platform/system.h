@@ -36,6 +36,7 @@ struct System {
     bool isMuted() const;
     void setAudioPaused(bool paused);
     void playSound(int i);
+    void preloadAudio(); // Decode every WAV up front so the first effect plays without delay.
     void hapticFeedback() {}
     void setFastSpeed() { minimumFrameTime = SCROLL_FRAME_TIME; }
     void setNormalSpeed() { minimumFrameTime = GAME_FRAME_TIME; }

@@ -59,3 +59,22 @@ All twelve installed WAV files were opened and decoded into PCM buffers with
 AVFoundation, including both the 8-bit music and the 16-bit effects.
 The smoke tests also remove an imported background WAV, reimport the data, and
 verify that the WAV returns while the existing save file remains unchanged.
+
+## 0.3.0 — 2026-11-01
+
+Environment: Apple Silicon, macOS 26. The unreleased 0.2.2 changes are included.
+
+Verified locally:
+
+- Universal (`arm64` + `x86_64`) build; asset-free self tests (24 checks, including updater version ordering).
+- `--download-test`: all 3 required files and 12 WAVs downloaded from the pinned Abbey commit, SHA-256 verified, and imported in about 4 seconds.
+- Real-data smoke test on arm64: 37 checks, including switching to the Amstrad CPC graphics mid-game and back. Screenshots of both sets were inspected; the CPC frame shows the original palette.
+- The same smoke test under AddressSanitizer + UBSan (leak detection off), with no findings.
+- Sharp-bilinear scaling, compared against nearest neighbour at 3.9× in an offline render: crisp, with uniform pixel sizes.
+- Pixel data and palette are byte-identical to Abbey: same engine and the same SHA-256-verified files.
+
+Not verified:
+
+- The Intel slice: Rosetta is not installed on this machine.
+- The new setup screen and menus visually: no screen-capture permission in the test session.
+- An end-to-end self-update: that needs a published Developer ID release newer than the running one. The first real test will be 0.3.0 → the next release.

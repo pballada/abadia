@@ -25,7 +25,18 @@ hardened runtime and a secure timestamp, verifies the team, submits it to Apple,
 requires an Accepted result, staples the ticket, and checks Gatekeeper. It then
 creates the final ZIP **after** stapling.
 
-Distribute `build/releases/VERSION/Abadia-macOS-notarized.zip`. The adjacent signature,
+Publish it as a GitHub release. The in-app updater requires the tag `vVERSION` and the exact asset name:
+
+```sh
+gh release create "v$VERSION" -R pballada/abadia --title "v$VERSION" \
+  --notes-file "docs/releases/v$VERSION.md" \
+  "build/releases/$VERSION/Abadia-macOS.zip" \
+  "build/releases/$VERSION/SHA256SUMS.txt"
+```
+
+The README's download link points at `releases/latest/download/Abadia-macOS.zip`, so it needs no edit per release. Installed copies (0.3.0 and later) see the new release within a day. Before publishing, mark drafts and prereleases appropriately: the updater reads only the release GitHub reports as *latest*.
+
+Distribute `build/releases/VERSION/Abadia-macOS.zip`. The adjacent signature,
 submission receipt, Apple log, and SHA-256 checksum provide release evidence.
 Do not distribute the intermediate `Abadia-notarization-upload.zip`.
 
@@ -68,3 +79,13 @@ checksum matches [Apple's Accepted log](releases/v0.2.1-notarization.json); the
 distribution archive matches the stapled app, with its submitted files unchanged.
 Distribution ZIP SHA-256:
 `167273d2a104c168dfd0d6c5fa1b75410d89991e5bf1fd19909372f37fc207ad`.
+
+### v0.3.0
+
+Accepted submission: `efca4abf-15c5-486f-a02a-b9d09b4c60ff`. Stapling, ticket
+validation and Gatekeeper (`source=Notarized Developer ID`) were verified in the
+release run, and the stapled app satisfies the in-app updater's signing requirement.
+[Apple's Accepted log](releases/v0.3.0-notarization.json).
+This is the first release whose asset is named `Abadia-macOS.zip`.
+Distribution ZIP SHA-256:
+`74b62582b3cafb4e3c809b8384a4eae6406cc7c6a3d864f8c00caad7415df55f`.

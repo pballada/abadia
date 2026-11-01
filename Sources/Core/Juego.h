@@ -127,6 +127,8 @@ private:
 	bool compruebaMenu(void);
 	void ReiniciaPantalla(void);
 public:
+	// macOS port: selects the Amstrad CPC (true) or VGA remake (false) graphics pack.
+	void usaGraficosCPC(bool cpc);
 	void muestraFinal();
 	void limpiaAreaJuego(int color);
 

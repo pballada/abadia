@@ -15,6 +15,7 @@
 #include <cstdio>
 
 #import "Presentation.h"
+#import "Updater.h"
 static CGImageRef FrameImage() { return CreateGameImage(); }
 static bool WriteFrame(NSString *path) {
     CGImageRef image = FrameImage();
@@ -28,6 +29,8 @@ static bool WriteFrame(NSString *path) {
 @property(nonatomic, weak) AppDelegate *owner;
 @property(nonatomic) BOOL ready;
 @property(nonatomic) BOOL paused;
+@property(nonatomic) BOOL integerScaling;
+@property(nonatomic, copy) NSString *status;
 @end
 
 @interface AppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate, NSMenuItemValidation> {
@@ -40,7 +43,9 @@ static bool WriteFrame(NSString *path) {
 @property(nonatomic, strong) NSWindow *window;
 @property(nonatomic, strong) GameView *gameView;
 @property(nonatomic, strong) NSTimer *timer;
+@property(nonatomic, strong) NSButton *downloadButton;
 @property(nonatomic, strong) NSButton *importButton;
+@property(nonatomic, strong) AbadiaUpdater *updater;
 @property(nonatomic) BOOL paused;
 - (void)setKey:(unsigned short)key down:(BOOL)down;
 - (void)importData:(id)sender;
@@ -48,7 +53,39 @@ static bool WriteFrame(NSString *path) {
 - (void)togglePause:(id)sender;
 @end
 
-@implementation GameView
+@implementation GameView {
+    CGContextRef _prescaled;
+    int _prescaleFactor;
+}
+- (void)dealloc { if (_prescaled) CGContextRelease(_prescaled); }
+// Draws the 640x400 frame into `rect` (in a y-up context) with evenly sized pixels.
+// Whole-number scales use nearest neighbour. Other scales first enlarge by the next
+// whole number with nearest neighbour, then resample once smoothly ("sharp bilinear"):
+// pixels stay crisp and equal in size, with only their shared edges blended.
+- (void)drawFrame:(CGContextRef)ctx inRect:(CGRect)rect backing:(CGFloat)backing {
+    CGImageRef image = FrameImage();
+    CGFloat pixelScale = rect.size.width * backing / 640.0;
+    int factor = (int)ceil(pixelScale - 0.001);
+    if (factor < 2 || fabs(pixelScale - round(pixelScale)) < 0.001) {
+        CGContextSetInterpolationQuality(ctx, kCGInterpolationNone);
+        CGContextDrawImage(ctx, rect, image);
+    } else {
+        if (!_prescaled || _prescaleFactor != factor) {
+            if (_prescaled) CGContextRelease(_prescaled);
+            CGColorSpaceRef color = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+            _prescaled = CGBitmapContextCreate(nullptr, 640 * factor, 400 * factor, 8, 0, color, kCGImageAlphaPremultipliedLast);
+            CGColorSpaceRelease(color);
+            CGContextSetInterpolationQuality(_prescaled, kCGInterpolationNone);
+            _prescaleFactor = factor;
+        }
+        CGContextDrawImage(_prescaled, CGRectMake(0, 0, 640 * factor, 400 * factor), image);
+        CGImageRef large = CGBitmapContextCreateImage(_prescaled);
+        CGContextSetInterpolationQuality(ctx, kCGInterpolationLow);
+        CGContextDrawImage(ctx, rect, large);
+        CGImageRelease(large);
+    }
+    CGImageRelease(image);
+}
 - (BOOL)acceptsFirstResponder { return YES; }
 - (BOOL)isFlipped { return YES; }
 - (void)keyDown:(NSEvent *)event {
@@ -64,17 +101,20 @@ static bool WriteFrame(NSString *path) {
     if (self.ready) {
         [NSColor.blackColor setFill]; NSRectFill(self.bounds);
         CGFloat scale = MIN(self.bounds.size.width/640.0,self.bounds.size.height/400.0);
+        CGFloat backing = self.window.backingScaleFactor ?: 1.0;
+        if (self.integerScaling) {
+            CGFloat whole = floor(scale * backing);
+            if (whole >= 1) scale = whole / backing;
+        }
         // Align the destination to backing pixels and preserve the original 8:5 frame.
         NSRect rect = NSMakeRect((self.bounds.size.width-640*scale)/2, (self.bounds.size.height-400*scale)/2, 640*scale, 400*scale);
         rect = [self backingAlignedRect:rect options:NSAlignAllEdgesNearest];
         CGContextRef ctx = NSGraphicsContext.currentContext.CGContext;
         CGContextSaveGState(ctx);
-        CGContextSetInterpolationQuality(ctx, kCGInterpolationNone);
         CGContextTranslateCTM(ctx, rect.origin.x, NSMaxY(rect));
         CGContextScaleCTM(ctx, 1, -1);
-        CGImageRef image = FrameImage();
-        CGContextDrawImage(ctx, CGRectMake(0,0,rect.size.width,rect.size.height), image);
-        CGImageRelease(image); CGContextRestoreGState(ctx);
+        [self drawFrame:ctx inRect:CGRectMake(0,0,rect.size.width,rect.size.height) backing:backing];
+        CGContextRestoreGState(ctx);
         if (self.paused) {
             [[NSColor colorWithWhite:0 alpha:0.62] setFill];
             NSRectFillUsingOperation(self.bounds, NSCompositingOperationSourceOver);
@@ -104,8 +144,7 @@ static bool WriteFrame(NSString *path) {
     }
     [self text:@"LA ABADÍA DEL CRIMEN" y:y+140 size:31 color:ink serif:YES];
     [self text:@"A mystery in seven days." y:y+187 size:17 color:ink serif:YES];
-    [self text:@"Required: abadia.dsk · GraficosCPC · GraficosVGA" y:y+222 size:13 color:ink serif:NO];
-    [self text:@"Select your Abbey folder. Audio files are optional." y:y+244 size:13 color:ink serif:NO];
+    [self text:(self.status ?: @"Download the game data once to begin (about 6 MB).") y:y+226 size:13 color:ink serif:NO];
     [self text:@"Paco Menéndez · Juan Delcán · 1987" y:self.bounds.size.height-54 size:12 color:ink serif:NO];
     [self text:@"Native macOS port · VIGASOCO / Abbey" y:self.bounds.size.height-33 size:11 color:ink serif:NO];
 }
@@ -135,22 +174,34 @@ static bool WriteFrame(NSString *path) {
     self.gameView.appearance = [NSAppearance appearanceNamed:NSAppearanceNameAqua];
     [self.gameView setAccessibilityLabel:@"La abadía del crimen game screen"];
     self.window.contentView = self.gameView;
-    self.importButton = [NSButton buttonWithTitle:@"Import Game Data…" target:self action:@selector(importData:)];
-    self.importButton.bezelStyle = NSBezelStyleRounded;
-    self.importButton.controlSize = NSControlSizeLarge;
-    self.importButton.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.gameView addSubview:self.importButton];
+    self.gameView.integerScaling = [NSUserDefaults.standardUserDefaults boolForKey:@"IntegerScaling"];
+    self.downloadButton = [NSButton buttonWithTitle:@"Download Game Data" target:self action:@selector(downloadData:)];
+    self.downloadButton.keyEquivalent = @"\r";
+    self.importButton = [NSButton buttonWithTitle:@"Use a Folder…" target:self action:@selector(importData:)];
+    for (NSButton *button in @[self.downloadButton, self.importButton]) {
+        button.bezelStyle = NSBezelStyleRounded;
+        button.controlSize = NSControlSizeLarge;
+        button.translatesAutoresizingMaskIntoConstraints = NO;
+        [self.gameView addSubview:button];
+    }
     [NSLayoutConstraint activateConstraints:@[
-        [self.importButton.centerXAnchor constraintEqualToAnchor:self.gameView.centerXAnchor],
-        [self.importButton.centerYAnchor constraintEqualToAnchor:self.gameView.centerYAnchor constant:115]
+        // Side by side, so the pair fits above the credits at the minimum window height.
+        [self.downloadButton.trailingAnchor constraintEqualToAnchor:self.gameView.centerXAnchor constant:-6],
+        [self.downloadButton.centerYAnchor constraintEqualToAnchor:self.gameView.centerYAnchor constant:105],
+        [self.importButton.leadingAnchor constraintEqualToAnchor:self.gameView.centerXAnchor constant:6],
+        [self.importButton.centerYAnchor constraintEqualToAnchor:self.downloadButton.centerYAnchor]
     ]];
+    self.updater = [AbadiaUpdater new];
+    __weak AppDelegate *weakSelf = self;
+    self.updater.presentAlert = ^(NSAlert *alert, void (^completion)(NSModalResponse)) { [weakSelf present:alert completion:completion]; };
     [self.window center]; [self.window makeKeyAndOrderFront:nil];
     [self.window makeFirstResponder:self.gameView];
     [NSApp activateIgnoringOtherApps:YES];
     NSURL *support = AbadiaSupportDirectory();
     NSURL *data = [support URLByAppendingPathComponent:@"roms/abadia"];
-    if (reimport) dispatch_async(dispatch_get_main_queue(), ^{ [self importData:nil]; });
-    else if (!ValidateAssets(data)) [self startEngine:support];
+    // Holding Option shows the setup screen again, to download or choose the data afresh.
+    if (!reimport && !ValidateAssets(data)) [self startEngine:support];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{ [self.updater checkInBackgroundIfDue]; });
     self.timer = [NSTimer timerWithTimeInterval:1.0/60 target:self selector:@selector(tick:) userInfo:nil repeats:YES];
     [[NSRunLoop mainRunLoop] addTimer:self.timer forMode:NSRunLoopCommonModes];
 }
@@ -165,12 +216,15 @@ static bool WriteFrame(NSString *path) {
     };
     NSMenu *app = submenu(@"Abadía");
     add(app,@"About La abadía del crimen",@selector(about:),@"");
+    add(app,@"Check for Updates…",@selector(checkForUpdates:),@"");
+    add(app,@"Automatically Check for Updates",@selector(toggleAutomaticUpdates:),@"");
     [app addItem:NSMenuItem.separatorItem];
     [app addItemWithTitle:@"Hide Abadía" action:@selector(hide:) keyEquivalent:@"h"];
     [app addItem:NSMenuItem.separatorItem];
     [app addItemWithTitle:@"Quit Abadía" action:@selector(terminate:) keyEquivalent:@"q"];
     NSMenu *file = submenu(@"File");
-    add(file,@"Import Game Data…",@selector(importData:),@"o");
+    add(file,@"Download Game Data",@selector(downloadData:),@"");
+    add(file,@"Import Game Data from Folder…",@selector(importData:),@"o");
     add(file,@"Show Saves in Finder",@selector(showSaves:),@"");
     add(file,@"Save Screenshot…",@selector(screenshot:),@"s");
     NSMenu *game = submenu(@"Game");
@@ -180,6 +234,9 @@ static bool WriteFrame(NSString *path) {
     NSMenu *view = submenu(@"View");
     NSMenuItem *fullscreen = [view addItemWithTitle:@"Enter Full Screen" action:@selector(toggleFullScreen:) keyEquivalent:@"f"];
     fullscreen.keyEquivalentModifierMask = NSEventModifierFlagCommand|NSEventModifierFlagControl;
+    add(view,@"Original Amstrad Graphics",@selector(toggleOriginalGraphics:),@"g");
+    add(view,@"Pixel-Perfect Scaling",@selector(toggleIntegerScaling:),@"");
+    [view addItem:NSMenuItem.separatorItem];
     add(view,@"Original Size",@selector(originalSize:),@"1");
     add(view,@"Double Size",@selector(doubleSize:),@"2");
     NSMenu *help = submenu(@"Help");
@@ -192,12 +249,31 @@ static bool WriteFrame(NSString *path) {
     if (chdir(support.fileSystemRepresentation) != 0) { [self alert:@"Unable to open the save folder." detail:support.path]; return; }
     _engine = new Vigasoco();
     if (!_engine->init()) { delete _engine; _engine = nullptr; [self alert:@"Unable to initialize the game." detail:@"Reimport the supported Abbey game data and relaunch."]; return; }
-    self.gameView.ready = YES; self.importButton.hidden = YES;
+    sys->preloadAudio();
+    if ([NSUserDefaults.standardUserDefaults boolForKey:@"OriginalGraphics"]) Abadia::elJuego->usaGraficosCPC(true);
+    self.gameView.ready = YES; self.importButton.hidden = YES; self.downloadButton.hidden = YES;
     if (![NSUserDefaults.standardUserDefaults boolForKey:@"HasSeenWelcome"]) {
         dispatch_async(dispatch_get_main_queue(), ^{ [self gettingStarted:nil]; });
     }
     [self.window makeFirstResponder:self.gameView];
     _engine->mainLoop(); self.gameView.needsDisplay = YES;
+}
+- (void)downloadData:(id)sender {
+    if (_engine) { [self alert:@"Game data is already installed." detail:@"To download it again, quit and reopen the app while holding Option. Your saves are kept."]; return; }
+    if (!self.downloadButton.enabled) return;
+    self.downloadButton.enabled = NO; self.importButton.enabled = NO;
+    self.gameView.status = @"Downloading game data from the Abbey project…";
+    self.gameView.needsDisplay = YES;
+    NSURL *support = AbadiaSupportDirectory();
+    DownloadAssets(support, ^(double fraction) {
+        self.gameView.status = [NSString stringWithFormat:@"Downloading game data… %d%%", (int)lround(fraction * 100)];
+        self.gameView.needsDisplay = YES;
+    }, ^(NSError *error) {
+        self.downloadButton.enabled = YES; self.importButton.enabled = YES;
+        self.gameView.status = nil; self.gameView.needsDisplay = YES;
+        if (error) [self alert:@"Could not download game data" detail:[NSString stringWithFormat:@"%@\n\nCheck your internet connection and try again, or choose “Use a Folder…” if you already have the files.", error.localizedDescription]];
+        else [self startEngine:support];
+    });
 }
 - (void)importData:(id)sender {
     if (_engine) { [self alert:@"Game data is already installed." detail:@"To replace the data or add missing WAV audio, quit and reopen the app while holding Option. Then select your complete Abbey data folder. Your saves will be kept in ~/Library/Application Support/Abadia."]; return; }
@@ -264,6 +340,18 @@ static bool WriteFrame(NSString *path) {
     _keys.clear(); _pressed.clear(); sys->pad = {}; sys->setAudioPaused(self.paused); self.gameView.needsDisplay = YES;
 }
 - (void)toggleMute:(NSMenuItem *)sender { sys->setMuted(!sys->isMuted()); }
+- (void)toggleOriginalGraphics:(id)sender {
+    BOOL original = ![NSUserDefaults.standardUserDefaults boolForKey:@"OriginalGraphics"];
+    [NSUserDefaults.standardUserDefaults setBool:original forKey:@"OriginalGraphics"];
+    if (_engine) { Abadia::elJuego->usaGraficosCPC(original); self.gameView.needsDisplay = YES; }
+}
+- (void)toggleIntegerScaling:(id)sender {
+    self.gameView.integerScaling = !self.gameView.integerScaling;
+    [NSUserDefaults.standardUserDefaults setBool:self.gameView.integerScaling forKey:@"IntegerScaling"];
+    self.gameView.needsDisplay = YES;
+}
+- (void)checkForUpdates:(id)sender { [self.updater checkForUpdates:sender]; }
+- (void)toggleAutomaticUpdates:(id)sender { self.updater.automaticallyChecks = !self.updater.automaticallyChecks; }
 - (void)applicationDidResignActive:(NSNotification *)note {
     _keys.clear(); _pressed.clear(); sys->pad = {};
     if (self.gameView.ready && !self.paused) [self togglePause:nil];
@@ -290,28 +378,39 @@ static bool WriteFrame(NSString *path) {
 - (BOOL)validateMenuItem:(NSMenuItem *)item {
     if (item.action == @selector(togglePause:)) { item.title = self.paused ? @"Resume" : @"Pause"; return self.gameView.ready; }
     if (item.action == @selector(toggleMute:)) item.state = sys->isMuted() ? NSControlStateValueOn : NSControlStateValueOff;
+    if (item.action == @selector(toggleOriginalGraphics:)) item.state = [NSUserDefaults.standardUserDefaults boolForKey:@"OriginalGraphics"] ? NSControlStateValueOn : NSControlStateValueOff;
+    if (item.action == @selector(toggleIntegerScaling:)) item.state = self.gameView.integerScaling ? NSControlStateValueOn : NSControlStateValueOff;
+    if (item.action == @selector(toggleAutomaticUpdates:)) item.state = self.updater.automaticallyChecks ? NSControlStateValueOn : NSControlStateValueOff;
+    if (item.action == @selector(downloadData:)) return !_engine && self.downloadButton.enabled;
     if (item.action == @selector(gameMenu:) || item.action == @selector(screenshot:) || item.action == @selector(showSaves:)) return self.gameView.ready;
     return YES;
 }
 - (void)alert:(NSString *)title detail:(NSString *)detail {
     NSAlert *alert = [NSAlert new]; alert.messageText = title; alert.informativeText = detail;
+    [self present:alert completion:nil];
+}
+// Shows a sheet while the game and its audio are held, then restores input focus.
+- (void)present:(NSAlert *)alert completion:(void (^)(NSModalResponse))completion {
+    if (self.window.attachedSheet) return; // Never stack sheets; the player is already deciding something.
     _keys.clear(); _pressed.clear(); sys->pad = {};
     if (!self.paused) sys->setAudioPaused(true);
     [alert beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse result) {
         self->_keys.clear(); self->_pressed.clear(); sys->pad = {};
         if (!self.paused) sys->setAudioPaused(false);
         [self.window makeFirstResponder:self.gameView];
+        if (completion) completion(result);
     }];
 }
 - (void)about:(id)sender {
-    [self alert:@"La abadía del crimen · 0.2.2" detail:@"Original game: Paco Menéndez and Juan Delcán (1987).\nC++ reconstruction: Manuel Abadía / VIGASOCO.\nSDL adaptation: Luzbel. Graphics: Antonio Giner.\nAbbey: Samuel Salinas Almaguer and contributors.\nNative macOS port: pballada.\n\nA noncommercial preservation project. Original assets are imported separately. See README and VIGASOCO.txt for attribution and terms."];
+    NSString *version = NSBundle.mainBundle.infoDictionary[@"CFBundleShortVersionString"] ?: @"";
+    [self alert:[@"La abadía del crimen · " stringByAppendingString:version] detail:@"Original game: Paco Menéndez and Juan Delcán (1987).\nC++ reconstruction: Manuel Abadía / VIGASOCO.\nSDL adaptation: Luzbel. Remake graphics: Antonio Giner.\nAbbey: Samuel Salinas Almaguer and contributors.\nNative macOS port: pballada.\n\nA noncommercial preservation project. Original assets are imported separately. See README and VIGASOCO.txt for attribution and terms."];
 }
 - (void)gettingStarted:(id)sender {
     NSAlert *guide = [NSAlert new];
-    guide.messageText = self.gameView.ready ? @"Welcome to the abbey" : @"Bring your game data";
+    guide.messageText = self.gameView.ready ? @"Welcome to the abbey" : @"Get the game data";
     guide.informativeText = self.gameView.ready
-        ? @"1. Press Return on the title, then choose New Game. Return also skips the prologue.\n\n2. Walk forward with ↑ or W. Turn with ← → or A D. These are character-relative controls.\n\n3. Follow the abbot when you arrive. Attend services and meals, and keep an eye on obsequium.\n\nEscape opens the game menu. Save regularly in its seven slots. P pauses; switching apps pauses automatically.\n\nYou can reopen this guide from Help → Getting Started."
-        : @"You need three files from the supported Abbey data pack:\n\n• abadia.dsk\n• GraficosCPC\n• GraficosVGA\n\nChoose the Abbey folder, build folder, or roms/abadia folder with Import Game Data. The app finds the files inside. WAV audio is optional.\n\nThe app copies the data to Application Support and leaves your source files in place. A disk image alone is not enough.";
+        ? @"1. Press Return on the title, then choose New Game. Return also skips the prologue.\n\n2. Walk forward with ↑ or W. Turn with ← → or A D. These are character-relative controls.\n\n3. Follow the abbot when you arrive. Attend services and meals, and keep an eye on obsequium.\n\nEscape opens the game menu. Save regularly in its seven slots. P pauses; switching apps pauses automatically. View → Original Amstrad Graphics (⌘G) switches to the 1987 look.\n\nYou can reopen this guide from Help → Getting Started."
+        : @"Click Download Game Data. The app fetches the original disk image, both graphics packs, and the music and sound effects (about 6 MB) from the Abbey project on GitHub, checks every file, and starts the game.\n\nAlready have the files? Choose “Use a Folder…” and select the folder containing abadia.dsk, GraficosCPC and GraficosVGA.\n\nThe data is stored in ~/Library/Application Support/Abadia, next to your saves.";
     [guide addButtonWithTitle:self.gameView.ready ? @"Enter the Abbey" : @"Got It"];
     _keys.clear(); _pressed.clear(); sys->pad = {};
     if (!self.paused) sys->setAudioPaused(true);
@@ -366,6 +465,11 @@ static int SmokeTest(NSString *source, NSString *output) {
     for (int i=0;i<120;++i) tick();
     ok &= check(std::any_of(sys->framebuffer.begin(),sys->framebuffer.end(),[](uint32_t n){return (n&0xffffff)!=0;}),"game produces visible pixels");
     if (output) ok &= check(WriteFrame(output),"gameplay screenshot written");
+    game->usaGraficosCPC(true); tick();
+    ok &= check(game->GraficosCPC,"original Amstrad graphics can be selected");
+    if (output) ok &= check(WriteFrame([output.stringByDeletingPathExtension stringByAppendingString:@"-cpc.png"]),"Amstrad screenshot written");
+    game->usaGraficosCPC(false); tick();
+    ok &= check(!game->GraficosCPC,"remake graphics can be restored");
     int savedX=game->personajes[0]->posX, savedY=game->personajes[0]->posY;
     engine.changeState(MENU); game->seleccionado=2; sys->pad.button3=true; tick();
     game->seleccionado=0; sys->pad.button3=true; tick();
@@ -431,6 +535,20 @@ static int SmokeTest(NSString *source, NSString *output) {
 int main(int argc, const char *argv[]) {
     @autoreleasepool {
         if (argc>1 && std::string(argv[1])=="--self-test") return RunSelfTests();
+        if (argc>1 && std::string(argv[1])=="--download-test") {
+            // Downloads the pinned data pack into a temporary folder and validates it.
+            NSURL *temp = [NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString]];
+            __block int status = -1;
+            DownloadAssets(temp, ^(double) {}, ^(NSError *error) {
+                NSURL *data = [temp URLByAppendingPathComponent:@"roms/abadia"];
+                NSUInteger audio = [[NSFileManager.defaultManager contentsOfDirectoryAtPath:data.path error:nil] filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"self ENDSWITH '.wav'"]].count;
+                status = (!error && !ValidateAssets(data) && audio == 12) ? 0 : 1;
+                printf("%s download imports verified data and %lu audio files%s%s\n", status ? "FAIL" : "PASS", (unsigned long)audio, error ? ": " : "", error ? error.localizedDescription.UTF8String : "");
+                [NSFileManager.defaultManager removeItemAtURL:temp error:nil];
+            });
+            while (status < 0) [NSRunLoop.mainRunLoop runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.1]];
+            return status;
+        }
         if (argc>2 && std::string(argv[1])=="--smoke-test")
             return SmokeTest(@(argv[2]),argc>3?@(argv[3]):nil);
         [NSApplication sharedApplication];

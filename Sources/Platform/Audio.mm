@@ -14,7 +14,7 @@ struct NativeAudio {
         reported[index] = true;
         fprintf(stderr, "Audio %s.wav: %s\n", files[index], reason.UTF8String);
     }
-    bool start(int index, bool loop) {
+    AVAudioPlayer *load(int index) {
         if (!players) players = [NSMutableDictionary dictionary];
         AVAudioPlayer *player = players[@(index)];
         if (!player) {
@@ -22,9 +22,15 @@ struct NativeAudio {
             NSString *path = [NSFileManager.defaultManager.currentDirectoryPath stringByAppendingPathComponent:relative];
             NSError *error = nil;
             player = [[AVAudioPlayer alloc] initWithContentsOfURL:[NSURL fileURLWithPath:path] error:&error];
-            if (!player) { report(index, error.localizedDescription ?: @"Unable to read audio file."); return false; }
+            if (!player) { report(index, error.localizedDescription ?: @"Unable to read audio file."); return nil; }
+            [player prepareToPlay];
             players[@(index)] = player;
         }
+        return player;
+    }
+    bool start(int index, bool loop) {
+        AVAudioPlayer *player = load(index);
+        if (!player) return false;
         player.numberOfLoops = loop ? -1 : 0;
         player.currentTime = 0;
         return resume(index);
@@ -41,6 +47,7 @@ struct NativeAudio {
 static NativeAudio nativeAudio;
 static AudioPlayback<NativeAudio, TOTAL_SOUND_FILES, TOTAL_MUSIC_FILES> playback(nativeAudio);
 void System::playSound(int i) { playback.playSound(i); }
+void System::preloadAudio() { for (int i = 0; i < TOTAL_SOUND_FILES + TOTAL_MUSIC_FILES; ++i) nativeAudio.load(i); }
 void System::playMusic(int i) { playback.playMusic(i); }
 void System::stopMusic() { playback.stopMusic(); }
 void System::setMuted(bool muted) { playback.setMuted(muted); }
