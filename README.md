@@ -34,16 +34,16 @@ This port runs the reconstructed C++ game directly inside a native AppKit applic
 
 ## Download for macOS
 
-**[Download the signed and notarized app](https://github.com/pballada/abadia/releases/download/v0.2.0/Abadia-macOS-notarized.zip)** · [Release notes](https://github.com/pballada/abadia/releases/tag/v0.2.0)
+**[Download the signed and notarized app](https://github.com/pballada/abadia/releases/download/v0.2.1/Abadia-macOS-notarized.zip)** · [Release notes](https://github.com/pballada/abadia/releases/tag/v0.2.1)
 
 Requires macOS 13 or later. One universal download supports Apple Silicon and Intel.
 Unzip it, move **La abadia del crimen.app** to Applications, and launch it. Import
 supported game data when prompted; the download does not include the original data.
 
-The v0.2.0 download is signed with Developer ID, accepted by Apple's notary service,
+The v0.2.1 download is signed with Developer ID, accepted by Apple's notary service,
 and has the notarization ticket stapled for offline verification. The release includes
 `SHA256SUMS.txt`; verify the downloaded archive with `shasum -a 256 -c SHA256SUMS.txt`
-from the folder containing both files. [Notarization record](docs/releases/v0.2.0-notarization.json).
+from the folder containing both files. [Notarization record](docs/releases/v0.2.1-notarization.json).
 
 ## Build and run
 
@@ -72,7 +72,7 @@ Optional WAV files in the same folder provide music and effects: `inicio`, `fina
 
 Data is copied locally to `~/Library/Application Support/Abadia/roms/abadia`. Saves and language settings live in `~/Library/Application Support/Abadia`. The application bundle stays read-only. Nothing is uploaded, and the app makes no network requests.
 
-## Source update: 0.2.1
+## What’s new in 0.2.1
 
 Edge smoothing, the decorative game frame, and its key legend have been removed. New builds display the original pixels. The app icon now has a transparent silhouette.
 

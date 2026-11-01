@@ -59,3 +59,12 @@ reported successful stapling, ticket validation, and Gatekeeper approval with
 The submitted archive's checksum matches Apple's [Accepted log](releases/v0.2.0-notarization.json),
 and the distributed app's submitted files match that archive. Do not replace the
 release asset with an ad-hoc development build.
+
+### v0.2.1
+
+Accepted submission: `8f725ac9-6777-42d1-ac74-055aa180a9ae`. The maintainer's
+release session verified stapling and Gatekeeper approval. The submitted archive
+checksum matches [Apple's Accepted log](releases/v0.2.1-notarization.json); the
+distribution archive matches the stapled app, with its submitted files unchanged.
+Distribution ZIP SHA-256:
+`167273d2a104c168dfd0d6c5fa1b75410d89991e5bf1fd19909372f37fc207ad`.
