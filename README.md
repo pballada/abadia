@@ -7,9 +7,15 @@
 
 A native macOS version of the 1987 adventure by **Paco Menéndez and Juan Delcán**.
 
+[![Latest release](https://img.shields.io/github/v/release/pballada/abadia?label=release&color=8b1e1e)](https://github.com/pballada/abadia/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/pballada/abadia/total?color=bba16d)](https://github.com/pballada/abadia/releases)
+[![macOS build](https://github.com/pballada/abadia/actions/workflows/macos.yml/badge.svg)](https://github.com/pballada/abadia/actions/workflows/macos.yml)
+<br>
 ![macOS 13+](https://img.shields.io/badge/macOS-13%2B-202d28?logo=apple&logoColor=white)
 ![Universal binary](https://img.shields.io/badge/Apple_Silicon_%2B_Intel-universal-bba16d)
-[![macOS build](https://github.com/pballada/abadia/actions/workflows/macos.yml/badge.svg)](https://github.com/pballada/abadia/actions/workflows/macos.yml)
+![Notarized](https://img.shields.io/badge/Apple-notarized-202d28?logo=apple&logoColor=white)
+[![License: noncommercial](https://img.shields.io/badge/license-noncommercial-lightgrey)](LICENSE.md)
+[![GitHub stars](https://img.shields.io/github/stars/pballada/abadia?style=flat&color=bba16d)](https://github.com/pballada/abadia/stargazers)
 
 ### [⬇︎ Download for Mac](https://github.com/pballada/abadia/releases/latest/download/Abadia-macOS.zip)
 
