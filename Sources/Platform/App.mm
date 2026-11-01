@@ -119,6 +119,7 @@ static bool WriteFrame(NSString *path) {
 
 @implementation AppDelegate
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
+    BOOL reimport = (NSEvent.modifierFlags & NSEventModifierFlagOption) != 0;
     [self createMenus];
     self.window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,960,600)
         styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskMiniaturizable|NSWindowStyleMaskResizable
@@ -148,7 +149,8 @@ static bool WriteFrame(NSString *path) {
     [NSApp activateIgnoringOtherApps:YES];
     NSURL *support = AbadiaSupportDirectory();
     NSURL *data = [support URLByAppendingPathComponent:@"roms/abadia"];
-    if (!ValidateAssets(data)) [self startEngine:support];
+    if (reimport) dispatch_async(dispatch_get_main_queue(), ^{ [self importData:nil]; });
+    else if (!ValidateAssets(data)) [self startEngine:support];
     self.timer = [NSTimer timerWithTimeInterval:1.0/60 target:self selector:@selector(tick:) userInfo:nil repeats:YES];
     [[NSRunLoop mainRunLoop] addTimer:self.timer forMode:NSRunLoopCommonModes];
 }
@@ -198,7 +200,7 @@ static bool WriteFrame(NSString *path) {
     _engine->mainLoop(); self.gameView.needsDisplay = YES;
 }
 - (void)importData:(id)sender {
-    if (_engine) { [self alert:@"Game data is already installed." detail:@"Your data and saves are in ~/Library/Application Support/Abadia. Quit the app before replacing data."]; return; }
+    if (_engine) { [self alert:@"Game data is already installed." detail:@"To replace the data or add missing WAV audio, quit and reopen the app while holding Option. Then select your complete Abbey data folder. Your saves will be kept in ~/Library/Application Support/Abadia."]; return; }
     NSOpenPanel *panel = NSOpenPanel.openPanel;
     panel.canChooseFiles = NO; panel.canChooseDirectories = YES;
     panel.prompt = @"Import";
@@ -261,7 +263,7 @@ static bool WriteFrame(NSString *path) {
     self.paused = !self.paused; self.gameView.paused = self.paused;
     _keys.clear(); _pressed.clear(); sys->pad = {}; sys->setAudioPaused(self.paused); self.gameView.needsDisplay = YES;
 }
-- (void)toggleMute:(NSMenuItem *)sender { sys->muted = !sys->muted; if (sys->muted) sys->stopMusic(); }
+- (void)toggleMute:(NSMenuItem *)sender { sys->setMuted(!sys->isMuted()); }
 - (void)applicationDidResignActive:(NSNotification *)note {
     _keys.clear(); _pressed.clear(); sys->pad = {};
     if (self.gameView.ready && !self.paused) [self togglePause:nil];
@@ -287,7 +289,7 @@ static bool WriteFrame(NSString *path) {
 }
 - (BOOL)validateMenuItem:(NSMenuItem *)item {
     if (item.action == @selector(togglePause:)) { item.title = self.paused ? @"Resume" : @"Pause"; return self.gameView.ready; }
-    if (item.action == @selector(toggleMute:)) item.state = sys->muted ? NSControlStateValueOn : NSControlStateValueOff;
+    if (item.action == @selector(toggleMute:)) item.state = sys->isMuted() ? NSControlStateValueOn : NSControlStateValueOff;
     if (item.action == @selector(gameMenu:) || item.action == @selector(screenshot:) || item.action == @selector(showSaves:)) return self.gameView.ready;
     return YES;
 }
@@ -302,7 +304,7 @@ static bool WriteFrame(NSString *path) {
     }];
 }
 - (void)about:(id)sender {
-    [self alert:@"La abadía del crimen · 0.2.1" detail:@"Original game: Paco Menéndez and Juan Delcán (1987).\nC++ reconstruction: Manuel Abadía / VIGASOCO.\nSDL adaptation: Luzbel. Graphics: Antonio Giner.\nAbbey: Samuel Salinas Almaguer and contributors.\nNative macOS port: pballada.\n\nA noncommercial preservation project. Original assets are imported separately. See README and VIGASOCO.txt for attribution and terms."];
+    [self alert:@"La abadía del crimen · 0.2.2" detail:@"Original game: Paco Menéndez and Juan Delcán (1987).\nC++ reconstruction: Manuel Abadía / VIGASOCO.\nSDL adaptation: Luzbel. Graphics: Antonio Giner.\nAbbey: Samuel Salinas Almaguer and contributors.\nNative macOS port: pballada.\n\nA noncommercial preservation project. Original assets are imported separately. See README and VIGASOCO.txt for attribution and terms."];
 }
 - (void)gettingStarted:(id)sender {
     NSAlert *guide = [NSAlert new];
@@ -338,7 +340,7 @@ static int SmokeTest(NSString *source, NSString *output) {
     if (!ImportAssets(sourceURL, temp, &error)) { fprintf(stderr,"%s\n",error.localizedDescription.UTF8String); return 1; }
     NSString *cwd = fm.currentDirectoryPath;
     if (chdir(temp.fileSystemRepresentation)) return 1;
-    sys->muted = true;
+    sys->setMuted(true);
     Vigasoco engine;
     if (!engine.init()) return 1;
     auto tick = [&]() { engine.mainLoop(); sys->pad = {}; };
@@ -346,14 +348,17 @@ static int SmokeTest(NSString *source, NSString *output) {
     bool ok = true;
     tick();
     ok &= check(Abadia::elJuego->currentState == INTRO,"intro initializes");
+    ok &= check(sys->currentMusic() == START,"title requests intro music even while muted");
     sys->pad.button3 = true; tick();
     ok &= check(Abadia::elJuego->currentState == MENU,"Return opens menu");
     sys->pad.button3 = true; tick();
     ok &= check(Abadia::elJuego->currentState == SCROLL,"new game enters prologue");
+    ok &= check(sys->currentMusic() == START,"prologue retains intro music");
     for (int i=0; i<12; ++i) tick();
     sys->pad.button3 = true; tick();
     for (int i=0; i<100 && Abadia::elJuego->currentState != PLAY; ++i) { sys->pad.button3 = true; tick(); }
     ok &= check(Abadia::elJuego->currentState == PLAY,"prologue can be skipped into gameplay");
+    ok &= check(sys->currentMusic() == BACKGROUND,"gameplay requests background music");
     auto *game = Abadia::elJuego;
     int facing = game->personajes[0]->orientacion;
     sys->pad.left = true; tick();
@@ -406,6 +411,19 @@ static int SmokeTest(NSString *source, NSString *output) {
     for (int i=0;i<500;++i) tick();
     ok &= check(true,"500 additional game ticks complete");
     ok &= check(Abadia::RouteBoundaryRegression::run(),"screen-exit path planning preserves character state and avoids abort");
+    engine.changeState(ENDING); tick();
+    ok &= check(sys->currentMusic() == END,"ending replaces background music");
+    engine.changeState(INTRO); tick();
+    ok &= check(sys->currentMusic() == START,"returning to title restores intro music");
+    sys->stopMusic();
+    NSData *saveBeforeReimport = [NSData dataWithContentsOfFile:@"abadia0.save"];
+    BOOL hasBackground = [fm fileExistsAtPath:[source stringByAppendingPathComponent:@"fondo.wav"]];
+    if (hasBackground) [fm removeItemAtPath:@"roms/abadia/fondo.wav" error:nil];
+    error = nil;
+    ok &= check(ImportAssets(sourceURL, temp, &error) &&
+                [[NSData dataWithContentsOfFile:@"abadia0.save"] isEqual:saveBeforeReimport] &&
+                (!hasBackground || [fm fileExistsAtPath:@"roms/abadia/fondo.wav"]),
+                "reimport restores optional audio and preserves existing saves");
     chdir(cwd.fileSystemRepresentation); [fm removeItemAtURL:temp error:nil];
     return ok?0:1;
 }

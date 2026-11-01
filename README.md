@@ -12,7 +12,7 @@ A native macOS port of the 1987 adventure by **Paco Menéndez and Juan Delcán**
 ![Status](https://img.shields.io/badge/status-playable_port-536b5d)
 [![macOS build](https://github.com/pballada/abadia/actions/workflows/macos.yml/badge.svg)](https://github.com/pballada/abadia/actions/workflows/macos.yml)
 
-[Get started](#build-and-run) · [Game data](#import-game-data) · [Controls](#play) · [Development](#development) · [Credits](#source-and-attribution)
+[Download](#download-for-macos) · [Game data](#import-game-data) · [Controls](#play) · [Development](#development) · [Credits](#source-and-attribution)
 
 <img src="docs/images/gameplay-original.png" alt="Guillermo and Adso arrive at the abbey, in the original pixel artwork" width="960">
 
@@ -36,25 +36,18 @@ This port runs the reconstructed C++ game directly inside a native AppKit applic
 
 **[Download the signed and notarized app](https://github.com/pballada/abadia/releases/download/v0.2.1/Abadia-macOS-notarized.zip)** · [Release notes](https://github.com/pballada/abadia/releases/tag/v0.2.1)
 
-Requires macOS 13 or later. One universal download supports Apple Silicon and Intel.
-Unzip it, move **La abadia del crimen.app** to Applications, and launch it. Import
-supported game data when prompted; the download does not include the original data.
+1. Download and unzip the app.
+2. Move **La abadia del crimen.app** to **Applications** and open it.
+3. On the first launch, select your [game data folder](#import-game-data) when prompted. Existing imports and saves are kept when you update.
 
-The v0.2.1 download is signed with Developer ID, accepted by Apple's notary service,
-and has the notarization ticket stapled for offline verification. The release includes
-`SHA256SUMS.txt`; verify the downloaded archive with `shasum -a 256 -c SHA256SUMS.txt`
-from the folder containing both files. [Notarization record](docs/releases/v0.2.1-notarization.json).
+That's it—no Terminal commands or Xcode needed. Requires macOS 13 or later; the same app runs on Apple Silicon and Intel. The download is signed with Developer ID and notarized by Apple. Original game data is supplied separately.
 
-## Build and run
+<details>
+<summary>Optional: verify the download</summary>
 
-Install Xcode or Apple's Command Line Tools, then:
+Download `SHA256SUMS.txt` from the release into the same folder as the ZIP and run `shasum -a 256 -c SHA256SUMS.txt`. This extra check is optional. The v0.2.1 app also carries a stapled notarization ticket for offline verification. [Notarization record](docs/releases/v0.2.1-notarization.json).
 
-```sh
-make -j8
-open "build/La abadia del crimen.app"
-```
-
-`make universal` builds both `arm64` and `x86_64`. `make package` creates `build/Abadia-macOS-universal.zip`. These development builds are ad-hoc signed for local use. For Developer ID signing, Apple notarization, and ticket stapling, run `./scripts/release.sh` with your signing identity and `notary` Keychain profile available; see the [release guide](docs/RELEASING.md). You can open the folder in Xcode for source editing; the reproducible build entry point is the Makefile.
+</details>
 
 ## Import game data
 
@@ -70,6 +63,8 @@ This version supports the unchanged data layout used by [Samuel85/Abbey](https:/
 
 Optional WAV files in the same folder provide music and effects: `inicio`, `final`, `fondo`, `abrir`, `aporrear`, `campanas`, `cerrar`, `coger`, `dejar`, `espejo`, `pasos`, and `tintineo` (each with `.wav`). Without them the game runs silently.
 
+For sound, import a folder that includes these WAV files alongside the three required data files. Check **Game → Mute Audio** (⌘U) and your Mac's output volume if playback is silent.
+
 Data is copied locally to `~/Library/Application Support/Abadia/roms/abadia`. Saves and language settings live in `~/Library/Application Support/Abadia`. The application bundle stays read-only. Nothing is uploaded, and the app makes no network requests.
 
 ## What’s new in 0.2.1
@@ -77,8 +72,13 @@ Data is copied locally to `~/Library/Application Support/Abadia/roms/abadia`. Sa
 Edge smoothing, the decorative game frame, and its key legend have been removed. New builds display the original pixels. The app icon now has a transparent silhouette.
 
 A path-planning fix prevents an abort when a monk leaves a slope at a local screen boundary.
-The notarized v0.2.0 download below predates this change; choose **View → Original Pixels**
-in that version for the same unfiltered presentation.
+These changes are included in the v0.2.1 download above.
+
+## Upcoming in 0.2.2
+
+The source and local development build now start the title/prologue, background, and ending tracks in the appropriate game states. Muting and pausing preserve the music position; unmuting resumes playback. Music changes leave sound effects playing. These fixes are not included in the v0.2.1 download yet.
+
+To add audio missing from an earlier import, the new build lets you quit and reopen while holding **Option**, then select the complete data folder. This replaces imported data and keeps your saves.
 
 ## What’s new in 0.2
 
@@ -112,11 +112,22 @@ The in-game menu provides new game, seven save slots, load, language selection, 
 
 ## Development
 
+### Build and run from source
+
+Install Xcode or Apple's Command Line Tools, then:
+
+```sh
+make -j8
+open "build/La abadia del crimen.app"
+```
+
+`make universal` builds both `arm64` and `x86_64`. `make package` creates `build/Abadia-macOS-universal.zip`. These development builds are ad-hoc signed for local use. For Developer ID signing and Apple notarization, see the [release guide](docs/RELEASING.md). The reproducible build entry point is the Makefile.
+
 ```text
 Sources/
   Core/          Reconstructed game logic, rendering, characters, and save system
   Platform/      Native window, input, audio, asset import, and presentation
-Tests/           Screen-boundary pathfinding regression fixture
+Tests/           Audio playback and screen-boundary pathfinding regressions
 Resources/       App metadata and original macOS icon
 scripts/         Icon generation and repository publishing
 .github/         Universal macOS build workflow
@@ -136,7 +147,7 @@ ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 \
   build/obj-arm64-sanitize/Abadia --smoke-test /absolute/path/to/roms/abadia
 ```
 
-The asset-free tests reject missing, truncated, and corrupt imports without changing the destination. The optional real-data test uses an isolated temporary save directory and exercises the title, menu, prologue, gameplay, player turning, saving, restoring changed player coordinates, all seven save slots, rejection of corrupt and empty slots, a failed overwrite, and hundreds of subsequent simulation ticks. It never alters normal player saves. Game data is not downloaded by CI.
+The asset-free tests cover music transitions, mute/unmute, repeated pause/resume, sound effects, and playback failure recovery using a simulated audio output. They also reject missing, truncated, and corrupt imports without changing the destination. The optional real-data test uses an isolated temporary save directory and exercises the title, menu, prologue, gameplay, player turning, saving, restoring changed player coordinates, all seven save slots, rejection of corrupt and empty slots, a failed overwrite, and hundreds of subsequent simulation ticks. It checks the requested music tracks through title, prologue, gameplay, and ending; this does not verify audible output. It never alters normal player saves. Game data is not downloaded by CI.
 
 This is an initial playable port, not a claim that every puzzle and ending has been exhaustively replayed. Hardware controller mapping is implemented with Apple's GameController API; actual controller hardware testing remains outstanding. The renderer uses the upstream VGA artwork, with the original pixels and nearest-neighbor scaling. A CPC/VGA artwork switch is not exposed. Legacy saves from other ports are not a supported interchange format.
 

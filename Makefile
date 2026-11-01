@@ -15,7 +15,7 @@ else
 FLAGS += -O2 -g
 endif
 FRAMEWORKS := -framework AppKit -framework AVFoundation -framework GameController -framework QuartzCore
-.PHONY: all run clean test universal package
+.PHONY: all run clean test test-audio universal package
 all: $(OBJ)/Abadia
 	@mkdir -p "$(APP)/Contents/MacOS" "$(APP)/Contents/Resources"
 	cp $(OBJ)/Abadia "$(APP)/Contents/MacOS/Abadia"
@@ -33,7 +33,12 @@ $(OBJ)/%.o: Sources/Platform/%.mm
 	$(CXX) $(FLAGS) -fobjc-arc -c $< -o $@
 run: all
 	open "$(APP)"
-test: all
+$(OBJ)/AudioPlaybackTests: Tests/AudioPlaybackTests.cpp Sources/Platform/AudioPlayback.h Sources/Platform/system.h
+	@mkdir -p $(OBJ)
+	$(CXX) $(FLAGS) $< -o $@
+test-audio: $(OBJ)/AudioPlaybackTests
+	$(OBJ)/AudioPlaybackTests
+test: all test-audio
 	"$(APP)/Contents/MacOS/Abadia" --self-test
 universal:
 	$(MAKE) ARCH=arm64 all

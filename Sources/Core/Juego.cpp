@@ -738,7 +738,6 @@ bool Juego::menu()
 					BUTTON_YES = false;
 
 					sys->minimumFrameTime = SCROLL_FRAME_TIME;
-					sys->playMusic(START);
 					activeGame = true;						
 				}
 				else
@@ -904,6 +903,11 @@ void Juego::stateMachine()
 			muestraFinal();
 			break;
 	}
+	// Select after the update so skipping the prologue, loading, and restarting
+	// all choose the track for the resulting state. Menus retain the current track.
+	if (currentState == INTRO || currentState == SCROLL) sys->playMusic(START);
+	else if (currentState == PLAY) sys->playMusic(BACKGROUND);
+	else if (currentState == ENDING) sys->playMusic(END);
 }
 
 // check for save files correct the menu options
@@ -1327,7 +1331,6 @@ void Juego::muestraIntroduccion()
 		paleta->setGamePalette(0);
 		currentState = PLAY;
 	
-		sys->stopMusic();
 		ReiniciaPantalla();
 		paleta->setGamePalette(2);		
 		marcador->limpiaAreaMarcador();
@@ -1345,7 +1348,6 @@ void Juego::muestraIntroduccion()
 void Juego::muestraFinal()
 {
 	//audio_plugin->Play(SONIDOS::Final,true);
-        sys->playMusic(END);
 	// muestra el texto del final
 	pergamino->muestraTexto(Pergamino::pergaminoFinal[idioma]);
 }

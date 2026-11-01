@@ -21,7 +21,7 @@ struct PlayerInput {
 struct NativeSurface { void *pixels; };
 struct System {
     PlayerInput pad{};
-    bool exit = false, muted = false;
+    bool exit = false;
     unsigned minimumFrameTime = GAME_FRAME_TIME;
     std::array<uint32_t, TEXTURE_WIDTH * TEXTURE_HEIGHT> framebuffer{};
     NativeSurface storage{framebuffer.data()};
@@ -31,6 +31,9 @@ struct System {
     bool validateSave(const std::string& path);
     void playMusic(int i);
     void stopMusic();
+    int currentMusic() const;
+    void setMuted(bool muted);
+    bool isMuted() const;
     void setAudioPaused(bool paused);
     void playSound(int i);
     void hapticFeedback() {}

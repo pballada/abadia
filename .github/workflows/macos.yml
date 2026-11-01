@@ -12,8 +12,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build universal application
         run: make -j3 package
-      - name: Test asset validation
-        run: '"build/La abadia del crimen.app/Contents/MacOS/Abadia" --self-test'
+      - name: Test audio playback and asset validation
+        run: |
+          make test-audio
+          "build/La abadia del crimen.app/Contents/MacOS/Abadia" --self-test
       - name: Verify architectures and signature
         run: |
           archs="$(lipo -archs 'build/La abadia del crimen.app/Contents/MacOS/Abadia')"

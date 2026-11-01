@@ -37,3 +37,25 @@ key legend. The icon's outer emerald tile was removed with the built-in image
 editing tool; its packaging script regenerates all icon sizes from the new
 transparent master. The existing notarized 0.2.0 release is not modified by these
 source changes. A new 0.2.1 distribution requires its own signing/notarization.
+
+## 0.2.2 audio fixes — 2026-11-01
+
+The ARM64 and Intel development executables pass the audio playback regression
+test using a simulated output. Coverage includes repeated music requests,
+track replacement without interrupting effects, mute/unmute, repeated pause,
+mute while paused, resume while muted, track changes while muted, stopping a
+paused track, invalid identifiers, and recovery after an output start failure.
+
+Both architectures pass the real-data smoke test, now also checking the requested
+tracks for title, prologue, gameplay, and ending. The same scenario and audio
+regressions pass with AddressSanitizer and UndefinedBehaviorSanitizer. The local
+0.2.2 app is universal and ad-hoc signed; the existing signed 0.2.1 release files
+are preserved. The native 0.2.2 app launches through AppKit.
+
+Audible speaker/headphone output has not been confirmed. The automation
+environment previously failed audio-device preparation, so simulated playback
+tests are deliberately distinguished from hardware listening tests.
+All twelve installed WAV files were opened and decoded into PCM buffers with
+AVFoundation, including both the 8-bit music and the 16-bit effects.
+The smoke tests also remove an imported background WAV, reimport the data, and
+verify that the WAV returns while the existing save file remains unchanged.
