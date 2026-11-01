@@ -5,10 +5,16 @@ cd "$(dirname "$0")/.."
 
 release_team="${TEAM_ID:-5UXXXESGMK}"
 release_profile="${NOTARY_PROFILE:-notary}"
-release_dir="$PWD/build/release"
+release_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)"
+release_dir="${RELEASE_DIR:-$PWD/build/releases/$release_version}"
 release_app="$release_dir/La abadia del crimen.app"
 release_upload="$release_dir/Abadia-notarization-upload.zip"
 release_zip="$release_dir/Abadia-macOS-notarized.zip"
+
+if [ -e "$release_app" ] || [ -e "$release_zip" ]; then
+    echo "A release already exists in $release_dir. Move it aside or set RELEASE_DIR to a fresh directory." >&2
+    exit 1
+fi
 
 # Resolve a usable identity, including its private key, for the intended team.
 # An explicit SIGNING_IDENTITY may be the certificate's SHA-1 fingerprint.
@@ -29,10 +35,6 @@ fi
 xcrun notarytool history --keychain-profile "$release_profile" --output-format json >/dev/null
 make -j8 universal
 mkdir -p "$release_dir"
-if [ -e "$release_app" ] || [ -e "$release_zip" ]; then
-    echo "A release already exists in build/release. Move that directory aside before creating another release." >&2
-    exit 1
-fi
 ditto "build/La abadia del crimen.app" "$release_app"
 codesign --force --options runtime --timestamp --sign "$release_identity" "$release_app"
 codesign --verify --deep --strict --verbose=2 "$release_app"
@@ -50,7 +52,7 @@ ditto -c -k --keepParent "$release_app" "$release_upload"
 # The JSON receipt and full Apple log remain beside the finished archive.
 if ! xcrun notarytool submit "$release_upload" --keychain-profile "$release_profile" \
     --wait --timeout 30m --output-format json >"$release_dir/notarization.json"; then
-    echo "Submission did not finish successfully. See build/release/notarization.json before retrying; do not resubmit a pending job." >&2
+    echo "Submission did not finish successfully. See $release_dir/notarization.json before retrying; do not resubmit a pending job." >&2
     exit 1
 fi
 release_submission="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["id"])' "$release_dir/notarization.json")"

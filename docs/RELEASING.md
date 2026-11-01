@@ -10,6 +10,10 @@ Prerequisites in the normal macOS login session:
 - Notarization credentials stored under the Keychain profile `notary`.
 - Xcode command-line tools and access to Apple's signing and notary services.
 
+The output directory is selected from the version in `Resources/Info.plist`.
+For 0.2.1 it is `build/releases/0.2.1`; earlier artifacts in `build/release`
+are preserved.
+
 From the repository root:
 
 ```sh
@@ -21,24 +25,24 @@ hardened runtime and a secure timestamp, verifies the team, submits it to Apple,
 requires an Accepted result, staples the ticket, and checks Gatekeeper. It then
 creates the final ZIP **after** stapling.
 
-Distribute `build/release/Abadia-macOS-notarized.zip`. The adjacent signature,
+Distribute `build/releases/VERSION/Abadia-macOS-notarized.zip`. The adjacent signature,
 submission receipt, Apple log, and SHA-256 checksum provide release evidence.
 Do not distribute the intermediate `Abadia-notarization-upload.zip`.
 
-Optional overrides: `TEAM_ID`, `NOTARY_PROFILE`, and `SIGNING_IDENTITY` (a
+Optional overrides: `RELEASE_DIR`, `TEAM_ID`, `NOTARY_PROFILE`, and `SIGNING_IDENTITY` (a
 certificate fingerprint). Credentials are read directly from Keychain; the
 script does not accept or print passwords.
 
-If a submission times out, inspect `build/release/notarization.json` for its ID.
+If a submission times out, inspect `build/releases/VERSION/notarization.json` for its ID.
 Check the existing job instead of submitting the same binary again:
 
 ```sh
 xcrun notarytool info SUBMISSION_ID --keychain-profile notary
-xcrun notarytool log SUBMISSION_ID --keychain-profile notary build/release/notarization-log.json
+xcrun notarytool log SUBMISSION_ID --keychain-profile notary build/releases/VERSION/notarization-log.json
 ```
 
 After an existing job becomes Accepted, staple and verify the existing release
-app, then package that app again. Move the completed `build/release` directory
+app, then package that app again. Move the completed `build/releases/VERSION` directory
 aside before building another release; never rebuild or re-sign a submitted app
 while waiting for its ticket.
 
