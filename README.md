@@ -48,6 +48,8 @@ Si te gusta, ¡dale una ⭐ al repositorio!
 2. Drag **La abadia del crimen** into your **Applications** folder and open it.
 3. Click **Download Game Data**.
 
+Or with Homebrew: `brew tap pballada/tap && brew install --cask abadia`, then open the app and click **Download Game Data**.
+
 That's it. The app fetches the original game data (about 6 MB) from the [Abbey project](https://github.com/Samuel85/Abbey/tree/048c3141f0bd1772c8b0bba82d18ebc72d837be1/build/roms/abadia), checks every file against a known SHA-256 checksum, and starts the game. The app is signed with Developer ID and notarized by Apple. It runs natively on Apple Silicon and Intel Macs with macOS 13 or later.
 
 **Updates install themselves.** The app checks GitHub for a new release once a day and offers to install it. It verifies Apple's signature and the release team before replacing itself, then relaunches. Your game data and saves are kept. Use **Abadía → Check for Updates…** to check now, or turn off automatic checks in the same menu. Updates can only install in place when the app is in a folder you can write to, such as Applications.
